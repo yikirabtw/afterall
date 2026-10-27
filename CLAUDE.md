@@ -70,10 +70,10 @@
 Тестов бэкенда — 118, все проходят. Все процессы (бот, API, dev-сервер) остановлены.
 
 Следующий шаг — выкладка на Render + Neon (README → «Бесплатный хостинг»):
-1. Пользователь создаёт пустой приватный репозиторий на GitHub (`afterall`) и присылает ссылку
-   (в GitHub Claude нигде не авторизован: нет коннектора, gh CLI, входа в браузере, Claude in Chrome).
-2. `git remote add origin <ссылка>` + `git push -u origin main` — окно входа Git Credential Manager
-   пользователь проходит сам.
+1. ✅ Репозиторий: https://github.com/yikirabtw/afterall (приватный), `origin`, ветка `main`.
+   Вход в GitHub сохранён в Git Credential Manager — `git push` работает без вопросов.
+   (Других способов работать с GitHub у Claude нет: ни коннектора, ни gh CLI, ни входа в браузере.)
+2. ✅ Код отправлен.
 3. Пользователь: Neon (проект в Frankfurt, строка подключения) и Render (New → Blueprint, сам вставляет
    BOT_TOKEN и DATABASE_URL). Либо входит в Neon/Render во встроенном браузере, а кликает Claude.
 4. После деплоя: проверить `https://<адрес>/api/health`, что бот отвечает через вебхук, и настроить
