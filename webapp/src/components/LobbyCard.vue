@@ -4,21 +4,12 @@ import { computed } from 'vue'
 import type { Lobby } from '../api/types'
 import { formatStart } from '../format'
 import { LOBBY_STATUS_LABELS, MEMBER_STATUS_LABELS, PLAY_STYLE_LABELS } from '../labels'
-import { gameById } from '../stores/session'
+import { gameTitle, rankRangeLabel } from '../lobby'
+import { haptic } from '../telegram'
 
 const props = defineProps<{ lobby: Lobby; showMyStatus?: boolean }>()
 
-const game = computed(() => gameById(props.lobby.game_id))
-
-const rankRange = computed(() => {
-  const ranks = game.value?.ranks ?? []
-  const min = ranks.find((rank) => rank.id === props.lobby.rank_min_id)
-  const max = ranks.find((rank) => rank.id === props.lobby.rank_max_id)
-  if (min && max) return min.id === max.id ? min.name : `${min.name} – ${max.name}`
-  if (min) return `от ${min.name}`
-  if (max) return `до ${max.name}`
-  return null
-})
+const rankRange = computed(() => rankRangeLabel(props.lobby))
 
 const freeSlots = computed(() => props.lobby.slots_total - props.lobby.slots_taken)
 
@@ -30,9 +21,9 @@ const statusBadge = computed(() => {
 </script>
 
 <template>
-  <article class="lobby card">
+  <RouterLink :to="`/lobby/${lobby.id}`" class="lobby card" @click="haptic.tap()">
     <header class="lobby__top">
-      <span class="lobby__game">{{ game?.name ?? 'Просто посидеть' }}</span>
+      <span class="lobby__game">{{ gameTitle(lobby) }}</span>
       <span class="lobby__when">{{ formatStart(lobby.starts_at) }}</span>
     </header>
 
@@ -60,10 +51,21 @@ const statusBadge = computed(() => {
         {{ lobby.slots_taken }}/{{ lobby.slots_total }}
       </span>
     </footer>
-  </article>
+  </RouterLink>
 </template>
 
 <style scoped>
+.lobby {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  transition: transform 0.08s ease;
+}
+
+.lobby:active {
+  transform: scale(0.99);
+}
+
 .lobby__top {
   display: flex;
   justify-content: space-between;

@@ -1,5 +1,17 @@
 import { getInitData } from '../telegram'
-import type { FeedParams, Game, Lobby, LobbyFeed, Me, ProfileInput, Slot, UserGameInput } from './types'
+import type {
+  FeedParams,
+  Game,
+  Lobby,
+  LobbyDetail,
+  LobbyFeed,
+  LobbyInput,
+  Me,
+  MemberDecision,
+  ProfileInput,
+  Slot,
+  UserGameInput,
+} from './types'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? ''
 
@@ -71,4 +83,13 @@ export const api = {
 
   feed: (params: FeedParams) => request<LobbyFeed>('GET', `/lobbies?${toQuery(params)}`),
   myLobbies: () => request<Lobby[]>('GET', '/lobbies/mine'),
+
+  // Все действия с пати возвращают свежую карточку — экран просто подменяет её
+  createLobby: (lobby: LobbyInput) => request<LobbyDetail>('POST', '/lobbies', lobby),
+  lobby: (id: number) => request<LobbyDetail>('GET', `/lobbies/${id}`),
+  apply: (id: number, note: string | null) => request<LobbyDetail>('POST', `/lobbies/${id}/apply`, { note }),
+  leave: (id: number) => request<LobbyDetail>('POST', `/lobbies/${id}/leave`),
+  decide: (id: number, memberId: number, decision: MemberDecision) =>
+    request<LobbyDetail>('POST', `/lobbies/${id}/members/${memberId}/${decision}`),
+  cancelLobby: (id: number) => request<LobbyDetail>('POST', `/lobbies/${id}/cancel`),
 }

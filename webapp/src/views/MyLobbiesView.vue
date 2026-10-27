@@ -27,7 +27,10 @@ onMounted(load)
 
 <template>
   <main class="page">
-    <h1 class="page-title">Мои пати</h1>
+    <header class="page-top">
+      <h1 class="page-title">Мои пати</h1>
+      <RouterLink to="/create" class="btn btn-primary btn-small">+ Создать</RouterLink>
+    </header>
 
     <div v-if="loading" class="center"><div class="spinner" /></div>
     <p v-else-if="error" class="error-text center">
@@ -37,6 +40,7 @@ onMounted(load)
     <div v-else-if="items.length === 0" class="empty">
       <p class="empty__title">Пока пусто</p>
       <p class="hint">Здесь будут пати, которые ты создашь, и те, куда откликнешься.</p>
+      <RouterLink to="/create" class="btn btn-primary btn-small empty__cta">Создать пати</RouterLink>
     </div>
     <div v-else class="stack">
       <LobbyCard v-for="lobby in items" :key="lobby.id" :lobby="lobby" show-my-status />

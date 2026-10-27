@@ -51,7 +51,10 @@ onMounted(() => load())
 
 <template>
   <main class="page">
-    <h1 class="page-title">Пати</h1>
+    <header class="page-top">
+      <h1 class="page-title">Пати</h1>
+      <RouterLink to="/create" class="btn btn-primary btn-small" @click="haptic.tap()">+ Создать</RouterLink>
+    </header>
 
     <div class="chips chips--scroll">
       <button type="button" class="chip" :class="{ 'chip--on': gameFilter === null }" @click="selectGame(null)">
@@ -89,8 +92,11 @@ onMounted(() => load())
     <div v-else-if="items.length === 0" class="empty">
       <p class="empty__title">Открытых пати пока нет</p>
       <p class="hint">
-        {{ gameFilter || fitsMe ? 'Попробуй убрать фильтры.' : 'Загляни вечером — в это время собирается больше людей.' }}
+        {{ gameFilter || fitsMe ? 'Попробуй убрать фильтры.' : 'Собери свою — остальные увидят её здесь.' }}
       </p>
+      <RouterLink v-if="!gameFilter && !fitsMe" to="/create" class="btn btn-primary btn-small empty__cta">
+        Создать пати
+      </RouterLink>
     </div>
     <div v-else-if="nextCursor" class="center">
       <button class="btn btn-ghost" type="button" @click="load(true)">Показать ещё</button>

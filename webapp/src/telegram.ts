@@ -14,6 +14,7 @@ interface TelegramWebApp {
   setBackgroundColor(color: string): void
   openTelegramLink(url: string): void
   openLink(url: string): void
+  showConfirm(message: string, callback: (confirmed: boolean) => void): void
   BackButton: {
     show(): void
     hide(): void
@@ -72,6 +73,23 @@ export const haptic = {
   select: () => supports('6.1') && webApp!.HapticFeedback.selectionChanged(),
   success: () => supports('6.1') && webApp!.HapticFeedback.notificationOccurred('success'),
   error: () => supports('6.1') && webApp!.HapticFeedback.notificationOccurred('error'),
+}
+
+/** Подтверждение опасного действия: системное окно Telegram, в браузере — обычный confirm */
+export function confirmAction(message: string): Promise<boolean> {
+  if (supports('6.2')) return new Promise((resolve) => webApp!.showConfirm(message, resolve))
+  return Promise.resolve(window.confirm(message))
+}
+
+/** Ссылки t.me открываем внутри Telegram, остальные (Discord) — во внешнем браузере */
+export function openExternal(url: string): void {
+  if (!insideTelegram) {
+    window.open(url, '_blank', 'noopener')
+  } else if (/^https:\/\/(t\.me|telegram\.me)\//.test(url)) {
+    webApp!.openTelegramLink(url)
+  } else {
+    webApp!.openLink(url)
+  }
 }
 
 /** Системная кнопка «Назад» Telegram: показывается, пока visible = true */

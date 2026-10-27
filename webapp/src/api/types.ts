@@ -125,6 +125,44 @@ export interface Lobby {
   contact_link: string | null
 }
 
+export interface LobbyMember {
+  user_id: number
+  display_name: string
+  avatar_url: string | null
+  reputation: number
+  has_mic: boolean
+  rank_id: number | null // ранг в игре этой пати
+  role_ids: number[]
+  status: MemberStatus
+  is_owner: boolean
+  note: string | null
+  // Контакты — только когда смотрящий и сам участник приняты в пати
+  username: string | null
+  discord_tag: string | null
+}
+
+export interface LobbyDetail extends Lobby {
+  // Создатель видит откликнувшихся и принятых, принятый — принятых, остальные — никого
+  members: LobbyMember[]
+}
+
+export interface LobbyInput {
+  kind: LobbyKind
+  game_id: number | null
+  title: string
+  description: string | null
+  slots_total: number
+  rank_min_id: number | null
+  rank_max_id: number | null
+  need_mic: boolean
+  play_style: PlayStyle | null
+  language: string
+  starts_at: string | null // ISO с часовым поясом; null — «прямо сейчас»
+  contact_link: string | null
+}
+
+export type MemberDecision = 'accept' | 'decline' | 'kick'
+
 export interface LobbyFeed {
   items: Lobby[]
   next_cursor: number | null

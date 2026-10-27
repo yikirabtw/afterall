@@ -66,6 +66,23 @@ select {
   letter-spacing: -0.02em;
 }
 
+/* Заголовок экрана с кнопкой справа */
+.page-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 0 16px;
+}
+
+.page-top .page-title {
+  margin: 0;
+}
+
+a.btn {
+  text-decoration: none;
+}
+
 .section-title {
   margin: 24px 0 8px;
   font-size: 13px;
@@ -326,6 +343,10 @@ textarea.input {
   margin: 0 0 6px;
   font-size: 18px;
   font-weight: 700;
+}
+
+.empty__cta {
+  margin-top: 16px;
 }
 
 .spinner {
