@@ -3,7 +3,11 @@ import { haptic } from '../telegram'
 
 const TABS = [
   { to: '/feed', label: 'Пати', icon: 'M4 6h16M4 12h16M4 18h10' },
-  { to: '/mine', label: 'Мои', icon: 'M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z' },
+  {
+    to: '/people',
+    label: 'Люди',
+    icon: 'M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zm-6 9a6 6 0 0 1 12 0M16 4.5a3.5 3.5 0 0 1 0 6.5M18 14.5a6 6 0 0 1 3 5.5',
+  },
   { to: '/profile', label: 'Профиль', icon: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 9a7 7 0 0 1 14 0' },
 ]
 </script>

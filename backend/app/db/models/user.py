@@ -10,12 +10,13 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    LargeBinary,
     SmallInteger,
     String,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, BigIntPK, TimestampMixin, str_enum
+from app.db.base import Base, BigIntPK, CreatedAtMixin, TimestampMixin, str_enum
 from app.db.enums import AgeGroup, LookingFor, PlayStyle, UserRole
 
 if TYPE_CHECKING:
@@ -53,6 +54,11 @@ class User(TimestampMixin, Base):
         back_populates="user",
         cascade="all, delete-orphan",
         order_by=lambda: (UserAvailability.weekday, UserAvailability.start_minute),
+    )
+    photos: Mapped[list[UserPhoto]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        order_by=lambda: (UserPhoto.position, UserPhoto.id),
     )
 
     @property
@@ -100,3 +106,23 @@ class UserAvailability(Base):
     end_minute: Mapped[int] = mapped_column(SmallInteger)
 
     user: Mapped[User] = relationship(back_populates="availability")
+
+
+class UserPhoto(CreatedAtMixin, Base):
+    """Фото профиля, до трёх; первое по position — главное.
+
+    Хранится в базе уже пережатым JPEG без EXIF (там бывают GPS-координаты) —
+    на бесплатном хостинге диск стирается при каждом перезапуске.
+    """
+
+    __tablename__ = "user_photos"
+
+    id: Mapped[int] = mapped_column(BigIntPK, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    position: Mapped[int] = mapped_column(SmallInteger, default=0)
+    # deferred: при выдаче списка фото сами байты не нужны — грузим только для GET /photos/{id}
+    data: Mapped[bytes] = mapped_column(LargeBinary, deferred=True)
+    width: Mapped[int] = mapped_column(SmallInteger)
+    height: Mapped[int] = mapped_column(SmallInteger)
+
+    user: Mapped[User] = relationship(back_populates="photos")

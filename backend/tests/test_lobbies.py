@@ -1,77 +1,15 @@
 """Пати: создание, лента и её фильтры, видимость, отклики и решения создателя."""
 
-from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
-from initdata import auth, make_init_data
+from initdata import auth
+from players import Player
 from sqlalchemy import update
 
 from app.db.enums import AgeGroup
-from app.db.models import Block, Game, GameRank, GameRole, Lobby, Profile, User, UserGame
+from app.db.models import Block, Lobby, User
 from app.domain.time import utcnow
-
-
-@dataclass
-class Player:
-    id: int
-    username: str
-    headers: dict[str, str]
-
-
-@pytest.fixture
-async def world(session_maker) -> dict[str, int]:
-    async with session_maker.begin() as session:
-        dota = Game(slug="dota2", name="Dota 2", platforms=["pc"], max_party_size=5)
-        dota.ranks = [
-            GameRank(code="herald", name="Рекрут", tier=1),
-            GameRank(code="guardian", name="Страж", tier=2),
-            GameRank(code="crusader", name="Рыцарь", tier=3),
-        ]
-        dota.roles = [GameRole(code="carry", name="Керри")]
-        cs2 = Game(slug="cs2", name="Counter-Strike 2", platforms=["pc"], max_party_size=5)
-        cs2.ranks = [GameRank(code="p0", name="Premier до 5 000", tier=1)]
-        old = Game(slug="old", name="Старая игра", is_active=False)
-        session.add_all([dota, cs2, old])
-        await session.flush()
-        ids = {"dota": dota.id, "cs2": cs2.id, "old": old.id, "p0": cs2.ranks[0].id}
-        ids.update({rank.code: rank.id for rank in dota.ranks})
-        return ids
-
-
-@pytest.fixture
-def make_player(session_maker, world):
-    """Создаёт пользователя, уже прошедшего онбординг, и возвращает его id и заголовок входа."""
-    counter = iter(range(1, 1000))
-
-    async def _make(
-        age_group: AgeGroup = AgeGroup.TEEN_16_17,
-        has_mic: bool = True,
-        dota_rank: str | None = "guardian",
-        banned: bool = False,
-    ) -> Player:
-        number = next(counter)
-        telegram_id, username = 10_000 + number, f"player{number}"
-        async with session_maker.begin() as session:
-            user = User(
-                telegram_id=telegram_id,
-                first_name=username,
-                username=username,
-                birth_date=date(2009, 1, 1),
-                age_group=age_group,
-                onboarded_at=utcnow(),
-                is_banned=banned,
-            )
-            user.profile = Profile(display_name=f"Игрок {number}", has_mic=has_mic, discord_tag=f"{username}_dc")
-            user.games = [UserGame(game_id=world["dota"], rank_id=world[dota_rank] if dota_rank else None)]
-            session.add(user)
-            await session.flush()
-            user_id = user.id
-        return Player(
-            user_id, username, auth(make_init_data(user_id=telegram_id, first_name=username, username=username))
-        )
-
-    return _make
 
 
 @pytest.fixture

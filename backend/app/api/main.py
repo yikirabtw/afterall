@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.api.routes import games, health, lobbies, me, onboarding, telegram
+from app.api.routes import games, health, lobbies, me, onboarding, people, photos, telegram
 from app.bot.dispatcher import build_dispatcher
 from app.bot.setup import setup_bot
 from app.config import settings
@@ -60,6 +60,8 @@ def create_app(
     app.state.session_maker = session_maker
     app.state.init_data_max_age = init_data_max_age
     app.state.webhook = webhook
+    # Ключ подписи ссылок на фото — выводим из токена бота, чтобы не заводить ещё один секрет
+    app.state.photo_secret = hashlib.sha256(f"photos:{bot_token}".encode()).hexdigest()
 
     app.add_middleware(
         CORSMiddleware,
@@ -67,7 +69,7 @@ def create_app(
         allow_methods=["*"],
         allow_headers=["Authorization", "Content-Type"],
     )
-    for module in (health, me, onboarding, games, lobbies):
+    for module in (health, me, onboarding, photos, people, games, lobbies):
         app.include_router(module.router, prefix="/api")
     app.include_router(telegram.router)
     if static_dir is not None:

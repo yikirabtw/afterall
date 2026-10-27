@@ -1,10 +1,10 @@
 from datetime import datetime
 
-from sqlalchemy import ColumnElement, and_, or_, select
+from sqlalchemy import ColumnElement, CompoundSelect, and_, or_, select, union
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import User
+from app.db.models import Block, User
 from app.domain.time import as_utc, utcnow
 
 
@@ -52,4 +52,12 @@ def ban_inactive_clause(now: datetime) -> ColumnElement[bool]:
     return or_(
         User.is_banned.is_(False),
         and_(User.banned_until.is_not(None), User.banned_until <= now),
+    )
+
+
+def blocked_user_ids(user_id: int) -> CompoundSelect:
+    """Все, кого пользователь заблокировал, и все, кто заблокировал его, — для `.not_in(...)` в запросах."""
+    return union(
+        select(Block.blocked_id).where(Block.blocker_id == user_id),
+        select(Block.blocker_id).where(Block.blocked_id == user_id),
     )

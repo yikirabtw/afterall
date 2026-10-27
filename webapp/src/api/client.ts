@@ -6,10 +6,13 @@ import type {
   LobbyDetail,
   LobbyFeed,
   LobbyInput,
+  Match,
   Me,
   MemberDecision,
+  PeopleParams,
+  Person,
   ProfileInput,
-  Slot,
+  ReactionKind,
   UserGameInput,
 } from './types'
 
@@ -38,14 +41,16 @@ function errorCode(detail: unknown): string {
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const headers: Record<string, string> = { Authorization: `tma ${getInitData()}` }
-  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  // Файлы (FormData) браузер оформляет сам — заголовок с границей частей ставить нельзя
+  const isForm = body instanceof FormData
+  if (body !== undefined && !isForm) headers['Content-Type'] = 'application/json'
 
   let response: Response
   try {
     response = await fetch(`${BASE_URL}/api${path}`, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
     })
   } catch {
     throw new ApiError(0, 'network_error')
@@ -71,6 +76,11 @@ function toQuery(params: object): string {
   return query.toString()
 }
 
+/** Ссылки на фото API отдаёт относительными — дополняем адресом API, если он на другом домене */
+export function assetUrl(path: string): string {
+  return `${BASE_URL}${path}`
+}
+
 export const api = {
   me: () => request<Me>('GET', '/me'),
   games: () => request<Game[]>('GET', '/games'),
@@ -78,8 +88,20 @@ export const api = {
   setBirthDate: (birthDate: string) => request<Me>('PUT', '/me/birth-date', { birth_date: birthDate }),
   saveProfile: (profile: ProfileInput) => request<Me>('PUT', '/me/profile', profile),
   saveGames: (games: UserGameInput[]) => request<Me>('PUT', '/me/games', { games }),
-  saveAvailability: (slots: Slot[]) => request<Me>('PUT', '/me/availability', { slots }),
   completeOnboarding: () => request<Me>('POST', '/me/onboarding/complete'),
+
+  uploadPhoto: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request<Me>('POST', '/me/photos', form)
+  },
+  deletePhoto: (id: number) => request<Me>('DELETE', `/me/photos/${id}`),
+  reorderPhotos: (ids: number[]) => request<Me>('PUT', '/me/photos/order', { photo_ids: ids }),
+
+  people: (params: PeopleParams) => request<Person[]>('GET', `/people?${toQuery(params)}`),
+  react: (userId: number, kind: ReactionKind) =>
+    request<{ match: Match | null }>('POST', `/people/${userId}/react`, { kind }),
+  matches: () => request<Match[]>('GET', '/matches'),
 
   feed: (params: FeedParams) => request<LobbyFeed>('GET', `/lobbies?${toQuery(params)}`),
   myLobbies: () => request<Lobby[]>('GET', '/lobbies/mine'),

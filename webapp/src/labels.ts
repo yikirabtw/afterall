@@ -41,5 +41,3 @@ export const MEMBER_STATUS_LABELS: Partial<Record<MemberStatus, string>> = {
   pending: 'Ждёт ответа',
   accepted: 'Ты в пати',
 }
-
-export const WEEKDAYS_SHORT = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']

@@ -1,12 +1,23 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.photo_links import make_photo_url
 from app.api.telegram_auth import InitDataError, validate_init_data
 from app.db.models import User
+from app.domain.time import utcnow
 from app.services.users import is_ban_active, upsert_telegram_user
+
+
+def get_photo_url(request: Request) -> Callable[[int], str]:
+    """Функция «id фото → подписанная ссылка». Выдавать ссылку — значит разрешить смотреть фото."""
+    secret, now = request.app.state.photo_secret, utcnow()
+    return lambda photo_id: make_photo_url(photo_id, secret, now)
+
+
+PhotoUrl = Annotated[Callable[[int], str], Depends(get_photo_url)]
 
 
 async def get_session(request: Request) -> AsyncIterator[AsyncSession]:

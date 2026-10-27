@@ -16,6 +16,14 @@ const MESSAGES: Record<string, string> = {
   role_not_in_game: 'Эта роль не подходит к выбранной игре.',
   validation_error: 'Проверь, всё ли заполнено правильно.',
 
+  // Фото и люди
+  too_many_photos: 'Можно добавить не больше 3 фото.',
+  photo_too_large: 'Фото слишком большое — до 10 МБ.',
+  photo_format_not_supported: 'Подойдёт фото в JPEG, PNG или WebP.',
+  photo_unreadable: 'Не получилось открыть это фото. Попробуй другое.',
+  photo_not_found: 'Фото уже удалено.',
+  person_not_found: 'Этого человека уже нет в ленте.',
+
   // Пати
   too_many_active_lobbies: 'У тебя уже 2 активные пати. Отмени одну или дождись, пока она закончится.',
   starts_at_out_of_range: 'Пати можно собрать максимум на сутки вперёд.',

@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import Select, and_, func, or_, select, union
+from sqlalchemy import Select, and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload
 
@@ -27,7 +27,7 @@ from app.domain.lobbies import (
     rank_fits,
 )
 from app.domain.time import utcnow
-from app.services.users import ban_inactive_clause, is_ban_active
+from app.services.users import ban_inactive_clause, blocked_user_ids, is_ban_active
 
 router = APIRouter(prefix="/lobbies", tags=["пати"])
 
@@ -43,14 +43,6 @@ def _invalid(code: str) -> HTTPException:
 def _not_found() -> HTTPException:
     # Чужую невидимую пати не отличаем от несуществующей — чтобы не выдавать, что она есть
     return _error("lobby_not_found", status.HTTP_404_NOT_FOUND)
-
-
-def _blocked_user_ids(user_id: int):
-    """Все, кого пользователь заблокировал, и все, кто заблокировал его."""
-    return union(
-        select(Block.blocked_id).where(Block.blocker_id == user_id),
-        select(Block.blocker_id).where(Block.blocked_id == user_id),
-    )
 
 
 async def _is_blocked(session: AsyncSession, a: int, b: int) -> bool:
@@ -225,7 +217,7 @@ async def lobby_feed(
             Lobby.expires_at > now,
             Lobby.age_group == user.age_group,
             Lobby.owner_id != user.id,
-            Lobby.owner_id.not_in(_blocked_user_ids(user.id)),
+            Lobby.owner_id.not_in(blocked_user_ids(user.id)),
             ban_inactive_clause(now),
         )
         .options(*FEED_OPTIONS)

@@ -48,6 +48,7 @@ export interface Me {
   age_group: AgeGroup | null
   is_onboarded: boolean
   profile: Profile | null
+  photos: Photo[] // первое — главное
   games: UserGame[]
   availability: Slot[]
 }
@@ -173,5 +174,57 @@ export interface FeedParams {
   kind?: LobbyKind
   fits_me?: boolean
   cursor?: number
+  limit?: number
+}
+
+export interface Photo {
+  id: number
+  url: string // подписанная ссылка, живёт несколько часов
+}
+
+export type ReactionKind = 'like' | 'skip'
+
+export interface PersonGame {
+  game_id: number
+  rank_id: number | null
+  role_ids: number[]
+  is_main: boolean
+}
+
+/** Анкета в ленте людей. Контактов нет — они открываются после взаимного лайка */
+export interface Person {
+  user_id: number
+  display_name: string
+  age: number | null
+  city: string | null
+  bio: string | null
+  has_mic: boolean
+  play_style: PlayStyle
+  looking_for: LookingFor
+  languages: string[]
+  reputation: number
+  photos: Photo[]
+  games: PersonGame[]
+  compatibility: number // 0–100
+  common_game_ids: number[]
+  reasons: string[]
+}
+
+export interface Match {
+  user_id: number
+  display_name: string
+  age: number | null
+  photos: Photo[]
+  main_game_id: number | null
+  username: string | null
+  discord_tag: string | null
+  matched_at: string
+}
+
+export interface PeopleParams {
+  game_id?: number
+  need_mic?: boolean
+  play_style?: PlayStyle
+  language?: string
   limit?: number
 }

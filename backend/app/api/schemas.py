@@ -10,11 +10,21 @@ from pydantic import (
     ConfigDict,
     Field,
     StringConstraints,
+    ValidationInfo,
     field_validator,
     model_validator,
 )
 
-from app.db.enums import AgeGroup, LobbyKind, LobbyStatus, LookingFor, MemberStatus, PlayStyle, UserRole
+from app.db.enums import (
+    AgeGroup,
+    LobbyKind,
+    LobbyStatus,
+    LookingFor,
+    MemberStatus,
+    PlayStyle,
+    ReactionKind,
+    UserRole,
+)
 from app.domain.time import as_utc
 
 
@@ -28,7 +38,8 @@ def _empty_to_none(value: str) -> str | None:
 
 # Необязательный текст: пробелы по краям обрезаются, пустая строка превращается в None
 ShortText = Annotated[str, StringConstraints(strip_whitespace=True, max_length=64), AfterValidator(_empty_to_none)]
-LongText = Annotated[str, StringConstraints(strip_whitespace=True, max_length=300), AfterValidator(_empty_to_none)]
+# Описание в анкете — коротко, как подпись к фото
+BioText = Annotated[str, StringConstraints(strip_whitespace=True, max_length=150), AfterValidator(_empty_to_none)]
 NoteText = Annotated[str, StringConstraints(strip_whitespace=True, max_length=200), AfterValidator(_empty_to_none)]
 DescriptionText = Annotated[
     str, StringConstraints(strip_whitespace=True, max_length=500), AfterValidator(_empty_to_none)
@@ -55,8 +66,8 @@ class BirthDateIn(BaseModel):
 
 
 class ProfileIn(BaseModel):
-    display_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=32)]
-    bio: LongText | None = None
+    display_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=20)]
+    bio: BioText | None = None
     has_mic: bool = True
     play_style: PlayStyle = PlayStyle.BALANCED
     looking_for: LookingFor = LookingFor.BOTH
@@ -215,8 +226,20 @@ class AvailabilitySlotOut(Schema):
     end_minute: int
 
 
+class PhotoOut(Schema):
+    id: int
+    url: str = ""  # подписанная ссылка; без неё <img> фото не покажет
+
+    @model_validator(mode="after")
+    def _signed_url(self, info: ValidationInfo) -> Self:
+        # Ссылку подписывает тот, кто собирает ответ: передаёт context={"photo_url": функция}
+        if not self.url and info.context and "photo_url" in info.context:
+            self.url = info.context["photo_url"](self.id)
+        return self
+
+
 class MeOut(Schema):
-    """Свои данные. Чужие профили будут отдаваться другой схемой — без даты рождения и контактов."""
+    """Свои данные. Чужие профили отдаются другой схемой — без даты рождения и контактов."""
 
     id: int
     telegram_id: int
@@ -228,6 +251,7 @@ class MeOut(Schema):
     age_group: AgeGroup | None
     is_onboarded: bool
     profile: ProfileOut | None
+    photos: list[PhotoOut]  # первое — главное
     games: list[UserGameOut]
     availability: list[AvailabilitySlotOut]
 
@@ -310,3 +334,61 @@ class LobbyDetailOut(LobbyOut):
 class LobbyFeedOut(BaseModel):
     items: list[LobbyOut]
     next_cursor: int | None  # передать как cursor, чтобы получить следующую страницу
+
+
+class PhotoOrderIn(BaseModel):
+    """Новый порядок своих фото: первое станет главным."""
+
+    photo_ids: list[int] = Field(min_length=1, max_length=3)
+
+
+# --- Лента людей ---
+
+
+class PersonGameOut(Schema):
+    game_id: int
+    rank_id: int | None
+    role_ids: list[int]
+    is_main: bool
+
+
+class PersonOut(BaseModel):
+    """Анкета в ленте людей. Без контактов — они открываются только после взаимного лайка."""
+
+    user_id: int
+    display_name: str
+    age: int | None
+    city: str | None
+    bio: str | None
+    has_mic: bool
+    play_style: PlayStyle
+    looking_for: LookingFor
+    languages: list[str]
+    reputation: int
+    photos: list[PhotoOut]
+    games: list[PersonGameOut]
+    # Наша изюминка: насколько человек подходит и почему
+    compatibility: int  # 0–100
+    common_game_ids: list[int]
+    reasons: list[str]
+
+
+class ReactIn(BaseModel):
+    kind: ReactionKind
+
+
+class MatchOut(BaseModel):
+    """Взаимный лайк. Здесь уже есть контакты."""
+
+    user_id: int
+    display_name: str
+    age: int | None
+    photos: list[PhotoOut]
+    main_game_id: int | None
+    username: str | None
+    discord_tag: str | None
+    matched_at: UtcDatetime
+
+
+class ReactOut(BaseModel):
+    match: MatchOut | None  # не None — лайк оказался взаимным

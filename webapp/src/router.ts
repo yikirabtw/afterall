@@ -2,11 +2,13 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 
 import { session } from './stores/session'
 import CreateLobbyView from './views/CreateLobbyView.vue'
+import EditProfileView from './views/EditProfileView.vue'
 import FeedView from './views/FeedView.vue'
 import HomeLayout from './views/HomeLayout.vue'
 import LobbyView from './views/LobbyView.vue'
-import MyLobbiesView from './views/MyLobbiesView.vue'
+import MatchesView from './views/MatchesView.vue'
 import OnboardingView from './views/onboarding/OnboardingView.vue'
+import PeopleView from './views/PeopleView.vue'
 import ProfileView from './views/ProfileView.vue'
 
 export const router = createRouter({
@@ -21,13 +23,15 @@ export const router = createRouter({
       redirect: '/feed',
       children: [
         { path: 'feed', component: FeedView },
-        { path: 'mine', component: MyLobbiesView },
+        { path: 'people', component: PeopleView },
         { path: 'profile', component: ProfileView },
       ],
     },
     // Экраны без нижней навигации — с кнопкой «Назад»
     { path: '/create', component: CreateLobbyView },
     { path: '/lobby/:id(\\d+)', component: LobbyView, props: (route) => ({ id: Number(route.params.id) }) },
+    { path: '/matches', component: MatchesView },
+    { path: '/profile/edit', component: EditProfileView },
     { path: '/:pathMatch(.*)*', redirect: '/feed' },
   ],
 })

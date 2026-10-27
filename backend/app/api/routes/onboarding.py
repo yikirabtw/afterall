@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import CurrentUser, SessionDep
+from app.api.deps import CurrentUser, PhotoUrl, SessionDep
 from app.api.routes.me import load_me
 from app.api.schemas import AvailabilityIn, BirthDateIn, GamesIn, MeOut, ProfileIn
 from app.db.models import Game, Profile, UserAvailability, UserGame
@@ -24,7 +24,7 @@ def _invalid(code: str) -> HTTPException:
 
 
 @router.put("/birth-date", response_model=MeOut)
-async def set_birth_date(body: BirthDateIn, user: CurrentUser, session: SessionDep) -> MeOut:
+async def set_birth_date(body: BirthDateIn, user: CurrentUser, session: SessionDep, photo_url: PhotoUrl) -> MeOut:
     """Дата рождения задаётся один раз — иначе можно было бы сменить возрастную группу.
 
     Исправить её сможет только поддержка. Если человек младше минимального возраста — ничего не сохраняем.
@@ -38,11 +38,11 @@ async def set_birth_date(body: BirthDateIn, user: CurrentUser, session: SessionD
     user.birth_date = body.birth_date
     user.age_group = age_group
     await session.commit()
-    return await load_me(session, user.id)
+    return await load_me(session, user.id, photo_url)
 
 
 @router.put("/profile", response_model=MeOut)
-async def save_profile(body: ProfileIn, user: CurrentUser, session: SessionDep) -> MeOut:
+async def save_profile(body: ProfileIn, user: CurrentUser, session: SessionDep, photo_url: PhotoUrl) -> MeOut:
     profile = await session.get(Profile, user.id)
     if profile is None:
         profile = Profile(user_id=user.id)
@@ -50,11 +50,11 @@ async def save_profile(body: ProfileIn, user: CurrentUser, session: SessionDep) 
     for field, value in body.model_dump().items():
         setattr(profile, field, value)
     await session.commit()
-    return await load_me(session, user.id)
+    return await load_me(session, user.id, photo_url)
 
 
 @router.put("/games", response_model=MeOut)
-async def save_games(body: GamesIn, user: CurrentUser, session: SessionDep) -> MeOut:
+async def save_games(body: GamesIn, user: CurrentUser, session: SessionDep, photo_url: PhotoUrl) -> MeOut:
     """Заменяет список игр целиком. Ранг и роли должны относиться к своей игре."""
     games = {
         game.id: game
@@ -92,20 +92,20 @@ async def save_games(body: GamesIn, user: CurrentUser, session: SessionDep) -> M
     await session.execute(delete(UserGame).where(UserGame.user_id == user.id))
     session.add_all(new_games)
     await session.commit()
-    return await load_me(session, user.id)
+    return await load_me(session, user.id, photo_url)
 
 
 @router.put("/availability", response_model=MeOut)
-async def save_availability(body: AvailabilityIn, user: CurrentUser, session: SessionDep) -> MeOut:
+async def save_availability(body: AvailabilityIn, user: CurrentUser, session: SessionDep, photo_url: PhotoUrl) -> MeOut:
     """Заменяет расписание целиком. Время — в часовом поясе из анкеты."""
     await session.execute(delete(UserAvailability).where(UserAvailability.user_id == user.id))
     session.add_all(UserAvailability(user_id=user.id, **slot.model_dump()) for slot in body.slots)
     await session.commit()
-    return await load_me(session, user.id)
+    return await load_me(session, user.id, photo_url)
 
 
 @router.post("/onboarding/complete", response_model=MeOut)
-async def complete_onboarding(user: CurrentUser, session: SessionDep) -> MeOut:
+async def complete_onboarding(user: CurrentUser, session: SessionDep, photo_url: PhotoUrl) -> MeOut:
     """Завершает онбординг, если заполнено обязательное: дата рождения, анкета, хотя бы одна игра.
 
     Расписание необязательно. Повторный вызов ничего не меняет.
@@ -126,4 +126,4 @@ async def complete_onboarding(user: CurrentUser, session: SessionDep) -> MeOut:
 
         user.onboarded_at = datetime.now(timezone.utc)
         await session.commit()
-    return await load_me(session, user.id)
+    return await load_me(session, user.id, photo_url)

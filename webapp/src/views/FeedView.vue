@@ -5,7 +5,9 @@ import { api } from '../api/client'
 import { errorMessage } from '../api/errors'
 import type { Lobby } from '../api/types'
 import LobbyCard from '../components/LobbyCard.vue'
+import MyLobbiesList from '../components/MyLobbiesList.vue'
 import { session } from '../stores/session'
+import { lobbiesTab } from '../stores/ui'
 import { haptic } from '../telegram'
 
 const items = ref<Lobby[]>([])
@@ -56,55 +58,71 @@ onMounted(() => load())
       <RouterLink to="/create" class="btn btn-primary btn-small" @click="haptic.tap()">+ Создать</RouterLink>
     </header>
 
-    <div class="chips chips--scroll">
-      <button type="button" class="chip" :class="{ 'chip--on': gameFilter === null }" @click="selectGame(null)">
-        Все
+    <div class="segmented tabs">
+      <button type="button" :aria-pressed="lobbiesTab === 'all'" @click="(lobbiesTab = 'all'), haptic.select()">
+        Все пати
       </button>
-      <button
-        v-for="game in filterGames"
-        :key="game.id"
-        type="button"
-        class="chip"
-        :class="{ 'chip--on': gameFilter === game.id }"
-        @click="selectGame(game.id)"
-      >
-        {{ game.name }}
+      <button type="button" :aria-pressed="lobbiesTab === 'mine'" @click="(lobbiesTab = 'mine'), haptic.select()">
+        Мои
       </button>
     </div>
 
-    <label class="card toggle-row fits">
-      <span>
-        <b>Только куда подхожу</b>
-        <span class="hint block">По рангу и микрофону</span>
-      </span>
-      <input v-model="fitsMe" class="switch" type="checkbox" @change="haptic.select()" />
-    </label>
+    <MyLobbiesList v-if="lobbiesTab === 'mine'" />
+    <template v-else>
+      <div class="chips chips--scroll">
+        <button type="button" class="chip" :class="{ 'chip--on': gameFilter === null }" @click="selectGame(null)">
+          Все
+        </button>
+        <button
+          v-for="game in filterGames"
+          :key="game.id"
+          type="button"
+          class="chip"
+          :class="{ 'chip--on': gameFilter === game.id }"
+          @click="selectGame(game.id)"
+        >
+          {{ game.name }}
+        </button>
+      </div>
 
-    <div class="stack">
-      <LobbyCard v-for="lobby in items" :key="lobby.id" :lobby="lobby" />
-    </div>
+      <label class="card toggle-row fits">
+        <span>
+          <b>Только куда подхожу</b>
+          <span class="hint block">По рангу и микрофону</span>
+        </span>
+        <input v-model="fitsMe" class="switch" type="checkbox" @change="haptic.select()" />
+      </label>
 
-    <div v-if="loading" class="center"><div class="spinner" /></div>
-    <p v-else-if="error" class="error-text center">
-      {{ error }}
-      <button class="btn btn-ghost" type="button" @click="load()">Повторить</button>
-    </p>
-    <div v-else-if="items.length === 0" class="empty">
-      <p class="empty__title">Открытых пати пока нет</p>
-      <p class="hint">
-        {{ gameFilter || fitsMe ? 'Попробуй убрать фильтры.' : 'Собери свою — остальные увидят её здесь.' }}
+      <div class="stack">
+        <LobbyCard v-for="lobby in items" :key="lobby.id" :lobby="lobby" />
+      </div>
+
+      <div v-if="loading" class="center"><div class="spinner" /></div>
+      <p v-else-if="error" class="error-text center">
+        {{ error }}
+        <button class="btn btn-ghost" type="button" @click="load()">Повторить</button>
       </p>
-      <RouterLink v-if="!gameFilter && !fitsMe" to="/create" class="btn btn-primary btn-small empty__cta">
-        Создать пати
-      </RouterLink>
-    </div>
-    <div v-else-if="nextCursor" class="center">
-      <button class="btn btn-ghost" type="button" @click="load(true)">Показать ещё</button>
-    </div>
+      <div v-else-if="items.length === 0" class="empty">
+        <p class="empty__title">Открытых пати пока нет</p>
+        <p class="hint">
+          {{ gameFilter || fitsMe ? 'Попробуй убрать фильтры.' : 'Собери свою — остальные увидят её здесь.' }}
+        </p>
+        <RouterLink v-if="!gameFilter && !fitsMe" to="/create" class="btn btn-primary btn-small empty__cta">
+          Создать пати
+        </RouterLink>
+      </div>
+      <div v-else-if="nextCursor" class="center">
+        <button class="btn btn-ghost" type="button" @click="load(true)">Показать ещё</button>
+      </div>
+    </template>
   </main>
 </template>
 
 <style scoped>
+.tabs {
+  margin-bottom: 12px;
+}
+
 .fits {
   margin: 12px 0 16px;
 }

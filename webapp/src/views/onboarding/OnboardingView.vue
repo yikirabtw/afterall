@@ -10,9 +10,8 @@ import { haptic, insideTelegram, useBackButton } from '../../telegram'
 import StepAge from './StepAge.vue'
 import StepGames from './StepGames.vue'
 import StepProfile from './StepProfile.vue'
-import StepSchedule from './StepSchedule.vue'
 
-const STEPS = [StepAge, StepProfile, StepGames, StepSchedule]
+const STEPS = [StepAge, StepProfile, StepGames]
 // Что API называет недостающим → какой шаг открыть
 const STEP_FOR_MISSING = ['birth_date', 'profile', 'games']
 
@@ -24,8 +23,7 @@ const error = ref('')
 function firstUnfinishedStep(me: Me): number {
   if (!me.birth_date) return 0
   if (!me.profile) return 1
-  if (me.games.length === 0) return 2
-  return 3
+  return 2
 }
 
 function back() {
