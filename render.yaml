@@ -1,0 +1,15 @@
+# Описание сервиса для Render (Blueprint): Dashboard → New → Blueprint → выбрать репозиторий.
+# Секреты вводятся в панели Render при создании, в репозиторий они не попадают.
+services:
+  - type: web
+    name: afterall
+    runtime: docker
+    plan: free
+    region: frankfurt
+    healthCheckPath: /api/health
+    envVars:
+      - key: BOT_TOKEN
+        sync: false # токен от @BotFather — ввести в панели
+      - key: DATABASE_URL
+        sync: false # строка подключения из Neon (postgresql://...) — ввести в панели
+      # PUBLIC_URL не нужен: Render сам передаёт адрес сервиса в RENDER_EXTERNAL_URL
