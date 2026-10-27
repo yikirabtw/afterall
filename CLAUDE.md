@@ -43,7 +43,8 @@
   Панель браузера Claude читает `.claude/launch.json` из исходной папки сессии (scratch), не из проекта.
   В эмуляции телефона клики по координатам в панели смещаются — нажимать элементы через JS.
 - БД: локально SQLite (`backend/dev.db`), в продакшене PostgreSQL. Переключение — через `DATABASE_URL` в `backend/.env`.
-- Docker и Git на машине пока не установлены.
+- Git установлен (2.56), репозиторий в корне проекта, ветка `main`; Docker не установлен.
+  Сообщения коммитов на русском — передавать через файл в `.git/` (у PowerShell 5.1 и длинных путей temp проблемы).
 - Хостинг (решение пользователя: бесплатно, пока нет потока людей и продаж подписок): Render (free, Frankfurt,
   Docker из `Dockerfile` + `render.yaml`) + Neon (free Postgres). На сервере бот — вебхук внутри API
   (`TelegramWebhook` в `api/main.py`, маршрут `api/routes/telegram.py`), включается, когда есть `PUBLIC_URL`
