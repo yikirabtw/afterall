@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 
 import { assetUrl } from '../api/client'
+import placeholderLight from '../assets/splash-light.jpg'
 import type { Photo } from '../api/types'
 import { haptic } from '../telegram'
 
@@ -37,7 +38,14 @@ function onTap(event: MouseEvent) {
       alt=""
       draggable="false"
     />
-    <div v-if="!photos.length" class="carousel__placeholder" aria-hidden="true">{{ initial }}</div>
+    <div
+      v-if="!photos.length"
+      class="carousel__placeholder"
+      :style="{ backgroundImage: `url(${placeholderLight})` }"
+      aria-hidden="true"
+    >
+      {{ initial }}
+    </div>
 
     <div v-if="photos.length > 1" class="carousel__bars" aria-hidden="true">
       <i v-for="(photo, i) in photos" :key="photo.id" :class="{ on: i === index }" />
@@ -70,15 +78,20 @@ function onTap(event: MouseEvent) {
   opacity: 1;
 }
 
+/* Без фото — полоса света из референсов фона и пиксельная буква со свечением */
 .carousel__placeholder {
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
-  background: linear-gradient(140deg, var(--accent), var(--warm));
-  color: var(--accent-ink);
-  font-size: 96px;
-  font-weight: 900;
+  background-color: var(--g-0);
+  background-size: cover;
+  background-position: 60% 40%;
+  color: var(--text);
+  font-family: var(--font-pixel);
+  font-size: 120px;
+  line-height: 1;
+  text-shadow: 0 0 12px rgb(255 255 255 / 0.8), 0 0 60px rgb(255 255 255 / 0.4);
 }
 
 .carousel__bars {
@@ -95,18 +108,19 @@ function onTap(event: MouseEvent) {
   flex: 1;
   height: 3px;
   border-radius: 2px;
-  background: rgb(255 255 255 / 0.35);
+  background: rgb(255 255 255 / 0.3);
 }
 
 .carousel__bars i.on {
   background: #fff;
+  box-shadow: 0 0 6px rgb(255 255 255 / 0.8);
 }
 
 /* Затемнение снизу — чтобы белый текст читался на любом фото */
 .carousel__shade {
   position: absolute;
   inset: 45% 0 0;
-  background: linear-gradient(to top, rgb(0 0 0 / 0.78), transparent);
+  background: linear-gradient(to top, rgb(0 0 0 / 0.88), rgb(0 0 0 / 0.4) 55%, transparent);
   pointer-events: none;
 }
 

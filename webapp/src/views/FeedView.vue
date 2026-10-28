@@ -6,6 +6,7 @@ import { errorMessage } from '../api/errors'
 import type { Lobby } from '../api/types'
 import LobbyCard from '../components/LobbyCard.vue'
 import MyLobbiesList from '../components/MyLobbiesList.vue'
+import WireCubes from '../components/WireCubes.vue'
 import { session } from '../stores/session'
 import { lobbiesTab } from '../stores/ui'
 import { haptic } from '../telegram'
@@ -103,6 +104,7 @@ onMounted(() => load())
         <button class="btn btn-ghost" type="button" @click="load()">Повторить</button>
       </p>
       <div v-else-if="items.length === 0" class="empty">
+        <WireCubes class="empty__art" />
         <p class="empty__title">Открытых пати пока нет</p>
         <p class="hint">
           {{ gameFilter || fitsMe ? 'Попробуй убрать фильтры.' : 'Собери свою — остальные увидят её здесь.' }}

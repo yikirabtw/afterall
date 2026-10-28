@@ -2,16 +2,23 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
+import SplashScreen from './components/SplashScreen.vue'
 import { loadSession, session } from './stores/session'
+
+// Заставка видна хотя бы столько, чтобы логотип успел собраться, — но только при первом запуске
+const SPLASH_MIN_MS = 1300
 
 const router = useRouter()
 // Экраны показываем только после выбора стартового маршрута — иначе на мгновение
 // монтируется лента и успевает запросить пати у ещё не прошедшего онбординг пользователя
 const routed = ref(false)
+let firstStart = true
 
 async function start() {
   routed.value = false
-  await loadSession()
+  const minDelay = firstStart ? new Promise((resolve) => setTimeout(resolve, SPLASH_MIN_MS)) : null
+  firstStart = false
+  await Promise.all([loadSession(), minDelay])
   if (session.me) await router.replace(session.me.is_onboarded ? '/feed' : '/onboarding')
   routed.value = true
 }
@@ -20,51 +27,36 @@ onMounted(start)
 </script>
 
 <template>
-  <div v-if="session.status === 'loading' || (session.status === 'ready' && !routed)" class="splash">
-    <div class="splash__logo">after<span>all</span></div>
-    <div class="spinner" />
-  </div>
+  <Transition name="splash">
+    <SplashScreen v-if="session.status === 'loading' || (session.status === 'ready' && !routed)" />
+    <SplashScreen v-else-if="session.status === 'error'">
+      <p class="splash-error__title">Не получилось войти</p>
+      <p class="hint splash-error__text">{{ session.error }}</p>
+      <button class="btn btn-outline btn-small" type="button" @click="start">Попробовать ещё раз</button>
+    </SplashScreen>
+  </Transition>
 
-  <div v-else-if="session.status === 'error'" class="splash">
-    <div class="splash__logo">after<span>all</span></div>
-    <p class="splash__title">Не получилось войти</p>
-    <p class="hint">{{ session.error }}</p>
-    <button class="btn btn-primary btn-small" type="button" @click="start">Попробовать ещё раз</button>
-  </div>
-
-  <RouterView v-else />
+  <RouterView v-if="session.status === 'ready' && routed" />
 </template>
 
 <style scoped>
-.splash {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  padding: 24px;
-  text-align: center;
-}
-
-.splash__logo {
-  font-size: 34px;
-  font-weight: 900;
-  letter-spacing: -0.04em;
-}
-
-.splash__logo span {
-  color: var(--accent);
-}
-
-.splash__title {
+.splash-error__title {
   margin: 0;
-  font-size: 18px;
-  font-weight: 700;
+  font-family: var(--font-pixel);
+  font-size: 20px;
+  text-transform: uppercase;
 }
 
-.splash .hint {
-  margin: 0;
+.splash-error__text {
+  margin: 0 0 8px;
   max-width: 300px;
+}
+
+.splash-leave-active {
+  transition: opacity 0.35s ease;
+}
+
+.splash-leave-to {
+  opacity: 0;
 }
 </style>

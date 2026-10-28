@@ -5,6 +5,7 @@ import { api } from '../api/client'
 import { errorMessage } from '../api/errors'
 import type { Lobby } from '../api/types'
 import LobbyCard from './LobbyCard.vue'
+import WireCubes from './WireCubes.vue'
 
 // «Мои пати»: созданные, где меня приняли и куда я откликнулся
 const items = ref<Lobby[]>([])
@@ -33,6 +34,7 @@ onMounted(load)
     <button class="btn btn-ghost" type="button" @click="load">Повторить</button>
   </p>
   <div v-else-if="items.length === 0" class="empty">
+    <WireCubes class="empty__art" />
     <p class="empty__title">Пока пусто</p>
     <p class="hint">Здесь будут пати, которые ты создашь, и те, куда откликнешься.</p>
     <RouterLink to="/create" class="btn btn-primary btn-small empty__cta">Создать пати</RouterLink>

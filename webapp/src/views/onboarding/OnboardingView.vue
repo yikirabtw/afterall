@@ -104,19 +104,21 @@ async function finish() {
 
 .progress__bar span {
   flex: 1;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--line);
-  transition: background 0.2s ease;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--line-strong);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .progress__bar span.active {
   background: var(--accent);
+  box-shadow: 0 0 8px 1px rgb(255 255 255 / 0.7);
 }
 
 .progress__label {
-  font-size: 13px;
-  color: var(--hint);
+  font-family: var(--font-pixel);
+  font-size: 14px;
+  color: var(--text-2);
   white-space: nowrap;
 }
 </style>

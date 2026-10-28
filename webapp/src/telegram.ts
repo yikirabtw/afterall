@@ -12,6 +12,7 @@ interface TelegramWebApp {
   isVersionAtLeast(version: string): boolean
   setHeaderColor(color: string): void
   setBackgroundColor(color: string): void
+  setBottomBarColor(color: string): void
   openTelegramLink(url: string): void
   openLink(url: string): void
   showConfirm(message: string, callback: (confirmed: boolean) => void): void
@@ -44,6 +45,7 @@ function supports(version: string): boolean {
 }
 
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost'])
+const PAGE_COLOR = '#000000' // как --page в styles.css
 
 /**
  * initData для заголовка Authorization. Вне Telegram в режиме разработки — тестовая подпись из
@@ -62,10 +64,11 @@ export function setupTelegram(): void {
   if (!insideTelegram) return
   webApp!.ready()
   webApp!.expand()
-  if (supports('6.1')) {
-    webApp!.setHeaderColor('secondary_bg_color')
-    webApp!.setBackgroundColor('secondary_bg_color')
-  }
+  // Приложение всегда чёрное — красим шапку и фон Telegram в тот же цвет
+  if (supports('6.1')) webApp!.setBackgroundColor(PAGE_COLOR)
+  if (supports('6.9')) webApp!.setHeaderColor(PAGE_COLOR)
+  else if (supports('6.1')) webApp!.setHeaderColor('bg_color')
+  if (supports('7.10')) webApp!.setBottomBarColor(PAGE_COLOR)
 }
 
 export const haptic = {

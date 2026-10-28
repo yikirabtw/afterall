@@ -158,6 +158,10 @@ async function save() {
   background: var(--card);
 }
 
+.photo-slot:has(.photo-slot__img) {
+  border: 1px solid var(--line-strong);
+}
+
 .photo-slot__img {
   width: 100%;
   height: 100%;
@@ -172,19 +176,24 @@ async function save() {
   bottom: 6px;
   padding: 4px 6px;
   border: 0;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 700;
+  border-radius: 5px;
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   text-align: center;
 }
 
 .photo-slot__main {
   background: var(--accent);
   color: var(--accent-ink);
+  box-shadow: var(--glow-1);
 }
 
 .photo-slot__make-main {
-  background: rgb(0 0 0 / 0.55);
+  border: 1px solid rgb(255 255 255 / 0.3);
+  background: rgb(0 0 0 / 0.6);
   color: #fff;
   cursor: pointer;
 }
@@ -196,8 +205,8 @@ async function save() {
   width: 26px;
   height: 26px;
   border: 0;
-  border-radius: 50%;
-  background: rgb(0 0 0 / 0.55);
+  border-radius: 7px;
+  background: rgb(0 0 0 / 0.6);
   color: #fff;
   font-size: 13px;
   cursor: pointer;
@@ -211,7 +220,7 @@ async function save() {
   align-items: center;
   justify-content: center;
   gap: 2px;
-  border: 2px dashed var(--line);
+  border: 1px dashed var(--g-400);
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--hint);
@@ -219,16 +228,19 @@ async function save() {
 }
 
 .photo-slot__add b {
-  font-size: 32px;
+  font-family: var(--font-pixel);
+  font-size: 40px;
+  font-weight: 400;
   line-height: 1;
-  color: var(--accent);
+  color: var(--text);
+  text-shadow: 0 0 12px rgb(255 255 255 / 0.7);
 }
 
 .photo-slot__empty {
   width: 100%;
   height: 100%;
-  border: 2px dashed var(--line);
+  border: 1px dashed var(--line-strong);
   border-radius: var(--radius-sm);
-  opacity: 0.4;
+  opacity: 0.5;
 }
 </style>

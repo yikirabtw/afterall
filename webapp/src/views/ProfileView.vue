@@ -6,6 +6,7 @@ import PhotoCarousel from '../components/PhotoCarousel.vue'
 import { formatAge } from '../format'
 import { LANGUAGES, LOOKING_FOR, PLAY_STYLE_LABELS } from '../labels'
 import { faceitLabel } from '../lobby'
+import { PHOTOS_MAX } from '../profile'
 import { gameById, session } from '../stores/session'
 import { haptic } from '../telegram'
 
@@ -39,6 +40,13 @@ const games = computed(() =>
     ]
   }),
 )
+
+// Полоса цифр под шапкой — как блок статистики в референсе
+const stats = computed(() => [
+  { value: String(games.value.length), label: 'игры' },
+  { value: `${profile.value.reputation > 0 ? '+' : ''}${profile.value.reputation}`, label: 'репутация' },
+  { value: `${me.value.photos.length}/${PHOTOS_MAX}`, label: 'фото' },
+])
 
 const lookingFor = computed(() => LOOKING_FOR.find((option) => option.value === profile.value.looking_for)?.label)
 const languages = computed(() =>
@@ -80,14 +88,20 @@ function edit(event: Event) {
       <button class="btn btn-ghost link" type="button" @click="edit">Добавить</button>
     </p>
 
+    <dl class="stats">
+      <div v-for="stat in stats" :key="stat.label" class="stats__item">
+        <dt>{{ stat.label }}</dt>
+        <dd>{{ stat.value }}</dd>
+      </div>
+    </dl>
+
     <div class="chips tags">
       <span class="badge badge--accent">Ищу: {{ lookingFor }}</span>
       <span class="badge">{{ PLAY_STYLE_LABELS[profile.play_style] }}</span>
       <span class="badge">{{ profile.has_mic ? 'С микрофоном' : 'Без микрофона' }}</span>
-      <span class="badge">Репутация {{ profile.reputation > 0 ? '+' : '' }}{{ profile.reputation }}</span>
     </div>
 
-    <p v-if="profile.bio" class="card bio">{{ profile.bio }}</p>
+    <p v-if="profile.bio" class="card card--lit bio">{{ profile.bio }}</p>
 
     <!-- Разделы нажимаются целиком: «Игры» — редактор игр, «Ещё» — анкета -->
     <h2 class="section-title">Игры</h2>
@@ -146,14 +160,15 @@ function edit(event: Event) {
   min-height: 280px;
   max-height: 440px;
   margin: 0 -16px;
-  border-radius: 0 0 28px 28px;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0 0 24px 24px;
 }
 
 .hero__name {
   margin: 0;
+  font-family: var(--font-title);
   font-size: 32px;
-  font-weight: 900;
-  letter-spacing: -0.02em;
+  font-weight: 400;
   line-height: 1.1;
   overflow-wrap: anywhere;
 }
@@ -176,9 +191,9 @@ function edit(event: Event) {
   place-items: center;
   width: 40px;
   height: 40px;
-  border: 0;
-  border-radius: 50%;
-  background: rgb(0 0 0 / 0.45);
+  border: 1px solid rgb(255 255 255 / 0.25);
+  border-radius: 12px;
+  background: rgb(0 0 0 / 0.5);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   color: #fff;
@@ -195,7 +210,43 @@ function edit(event: Event) {
 .link {
   min-height: 32px;
   padding: 0;
-  color: var(--accent);
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Цифры пиксельным шрифтом, между ними пунктирные разделители */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 18px 0 0;
+  padding: 14px 0;
+  border-top: 1px dashed var(--line-strong);
+  border-bottom: 1px dashed var(--line-strong);
+}
+
+.stats__item {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 4px;
+}
+
+.stats__item + .stats__item {
+  border-left: 1px dashed var(--line-strong);
+}
+
+.stats dd {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: 30px;
+  line-height: 1;
+  text-shadow: 0 0 6px rgb(255 255 255 / 0.4);
+}
+
+.stats dt {
+  font-size: 12px;
+  color: var(--hint);
 }
 
 .tags {
@@ -203,7 +254,7 @@ function edit(event: Event) {
 }
 
 .bio {
-  margin: 16px 0 0;
+  margin: 20px 0 0;
   white-space: pre-line;
   overflow-wrap: anywhere;
 }
@@ -221,7 +272,7 @@ function edit(event: Event) {
 }
 
 .list__row + .list__row {
-  border-top: 1px solid var(--line);
+  border-top: 1px dashed var(--line-strong);
 }
 
 .main {
@@ -258,7 +309,7 @@ a.list__row.tappable {
 }
 
 .faceit {
-  color: var(--warm);
+  color: var(--warn);
   font-weight: 700;
 }
 

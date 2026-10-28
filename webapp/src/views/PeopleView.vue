@@ -7,6 +7,7 @@ import type { Match, PeopleParams, Person, ReactionKind } from '../api/types'
 import MatchOverlay from '../components/MatchOverlay.vue'
 import PeopleFilters from '../components/PeopleFilters.vue'
 import PersonCard from '../components/PersonCard.vue'
+import WireCubes from '../components/WireCubes.vue'
 import { haptic } from '../telegram'
 
 const SWIPE_THRESHOLD = 90 // px — дальше этого отпущенная анкета улетает
@@ -206,13 +207,14 @@ async function decide(kind: ReactionKind) {
         <span class="stamp stamp--skip" :style="{ opacity: skipOpacity }">Дальше</span>
       </div>
 
-      <div v-if="!current && loading" class="deck__state"><div class="spinner" /></div>
+      <div v-if="!current && loading" class="deck__state"><span class="dots-loader"><i /><i /><i /></span></div>
       <div v-else-if="!current && error" class="deck__state">
         <p class="empty__title">Не получилось загрузить</p>
         <p class="hint">{{ error }}</p>
         <button class="btn btn-ghost" type="button" @click="reload">Повторить</button>
       </div>
       <div v-else-if="!current" class="deck__state">
+        <WireCubes class="deck__cubes" />
         <p class="empty__title">Анкеты закончились</p>
         <p class="hint">
           {{ filtersActive ? 'Попробуй ослабить фильтры.' : 'Загляни позже — пропущенные анкеты вернутся через пару дней.' }}
@@ -260,47 +262,51 @@ async function decide(kind: ReactionKind) {
   gap: 8px;
 }
 
+/* Иконки-плитки — как в наборе виджетов */
 .icon-btn {
   position: relative;
   display: grid;
   place-items: center;
   width: 42px;
   height: 42px;
-  border: 0;
-  border-radius: 50%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
   background: var(--card);
+  box-shadow: var(--edge-light);
   color: var(--text);
   cursor: pointer;
 }
 
-a.icon-btn {
-  color: var(--accent);
+.icon-btn:active {
+  box-shadow: var(--glow-1);
 }
 
 .icon-btn__count {
   position: absolute;
-  top: -2px;
-  right: -2px;
+  top: -5px;
+  right: -5px;
   min-width: 18px;
   height: 18px;
-  padding: 0 5px;
-  border-radius: 9px;
+  padding: 0 4px;
+  border-radius: 5px;
   background: var(--accent);
   color: var(--accent-ink);
-  font-size: 11px;
-  font-weight: 800;
+  font-family: var(--font-pixel);
+  font-size: 13px;
   line-height: 18px;
   text-align: center;
+  box-shadow: var(--glow-1);
 }
 
 .icon-btn__dot {
   position: absolute;
   top: 6px;
   right: 6px;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: var(--warm);
+  background: var(--accent);
+  box-shadow: var(--glow-1);
 }
 
 .deck {
@@ -326,28 +332,38 @@ a.icon-btn {
   cursor: grab;
 }
 
+/* Штампы при свайпе — пиксельные, светятся своим цветом */
 .stamp {
   position: absolute;
-  top: 28px;
-  padding: 6px 14px;
-  border: 3px solid;
-  border-radius: 10px;
-  font-size: 22px;
-  font-weight: 900;
+  top: 32px;
+  padding: 6px 12px 4px;
+  border: 2px solid;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.35);
+  font-family: var(--font-pixel);
+  font-size: 26px;
+  line-height: 1;
   text-transform: uppercase;
   pointer-events: none;
+  box-shadow: 0 0 18px currentColor, inset 0 0 12px color-mix(in srgb, currentColor 40%, transparent);
+  text-shadow: 0 0 10px currentColor;
 }
 
 .stamp--like {
   left: 20px;
-  color: var(--accent);
-  transform: rotate(-12deg);
+  color: var(--ok);
+  transform: rotate(-10deg);
 }
 
 .stamp--skip {
   right: 20px;
   color: var(--danger);
-  transform: rotate(12deg);
+  transform: rotate(10deg);
+}
+
+.deck__cubes {
+  width: 150px;
+  margin-bottom: 18px;
 }
 
 .deck__state {
@@ -368,15 +384,16 @@ a.icon-btn {
   padding-top: 14px;
 }
 
+/* Кнопки решения — плитки из набора виджетов */
 .round {
   display: grid;
   place-items: center;
   width: 64px;
   height: 64px;
-  border: 0;
-  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  border-radius: 20px;
   cursor: pointer;
-  transition: transform 0.08s ease;
+  transition: transform 0.08s ease, box-shadow 0.15s ease;
 }
 
 .round:active {
@@ -389,12 +406,20 @@ a.icon-btn {
 
 .round--skip {
   background: var(--card);
+  box-shadow: var(--edge-light);
+  color: var(--text);
+}
+
+.round--skip:active {
   color: var(--danger);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--danger) 50%, transparent);
 }
 
 .round--like {
+  border-color: var(--accent);
   background: var(--accent);
   color: var(--accent-ink);
+  box-shadow: var(--glow-1), var(--glow-2);
 }
 
 .people__error {

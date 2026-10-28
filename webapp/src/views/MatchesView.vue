@@ -6,6 +6,7 @@ import { errorMessage } from '../api/errors'
 import type { Match } from '../api/types'
 import MatchContacts from '../components/MatchContacts.vue'
 import PageHeader from '../components/PageHeader.vue'
+import WireCubes from '../components/WireCubes.vue'
 import { gameById } from '../stores/session'
 
 const matches = ref<Match[]>([])
@@ -37,6 +38,7 @@ onMounted(load)
       <button class="btn btn-ghost" type="button" @click="load">Повторить</button>
     </p>
     <div v-else-if="matches.length === 0" class="empty">
+      <WireCubes class="empty__art" />
       <p class="empty__title">Пока нет мэтчей</p>
       <p class="hint">Ставь ♥ тем, с кем хочешь играть. Если симпатия взаимная — человек появится здесь с контактами.</p>
     </div>
@@ -84,12 +86,14 @@ onMounted(load)
   place-items: center;
   width: 64px;
   height: 64px;
-  border-radius: 20px;
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
   overflow: hidden;
-  background: linear-gradient(140deg, var(--accent), var(--warm));
-  color: var(--accent-ink);
-  font-size: 26px;
-  font-weight: 900;
+  background: var(--g-100);
+  color: var(--text);
+  font-family: var(--font-pixel);
+  font-size: 30px;
+  text-shadow: 0 0 10px rgb(255 255 255 / 0.6);
 }
 
 .match__avatar img {
@@ -103,6 +107,7 @@ onMounted(load)
 }
 
 .match__name {
+  font-family: var(--font-title);
   font-size: 17px;
   overflow-wrap: anywhere;
 }

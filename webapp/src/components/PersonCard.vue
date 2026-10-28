@@ -36,7 +36,10 @@ const meta = computed(() =>
 
 <template>
   <PhotoCarousel class="person" :photos="person.photos" :name="person.display_name">
-    <span class="person__match">Совпадение {{ person.compatibility }}%</span>
+    <span class="person__match">
+      <b>{{ person.compatibility }}%</b>
+      <span>совпадение</span>
+    </span>
     <h2 class="person__name">
       {{ person.display_name }}<span v-if="person.age !== null" class="person__age">, {{ person.age }}</span>
     </h2>
@@ -55,37 +58,60 @@ const meta = computed(() =>
 .person {
   width: 100%;
   height: 100%;
-  border-radius: 24px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  box-shadow: var(--edge-light);
 }
 
+/* «Совпадение N%» — наша изюминка: пиксельные цифры со свечением */
 .person__match {
-  display: inline-block;
-  margin-bottom: 8px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-size: 13px;
-  font-weight: 800;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 5px 10px 4px;
+  border: 1px solid rgb(255 255 255 / 0.55);
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 0 16px rgb(255 255 255 / 0.25);
+}
+
+.person__match b {
+  font-family: var(--font-pixel);
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 0.9;
+  text-shadow: 0 0 6px rgb(255 255 255 / 0.45);
+}
+
+.person__match span {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.8;
 }
 
 .person__name {
   margin: 0;
+  font-family: var(--font-title);
   font-size: 30px;
-  font-weight: 900;
-  letter-spacing: -0.02em;
+  font-weight: 400;
   line-height: 1.1;
   overflow-wrap: anywhere;
 }
 
 .person__age {
-  font-weight: 600;
+  font-weight: 500;
+  opacity: 0.8;
 }
 
 .person__meta {
   margin: 4px 0 0;
   font-size: 14px;
-  opacity: 0.85;
+  opacity: 0.8;
 }
 
 .person__games {
@@ -97,24 +123,30 @@ const meta = computed(() =>
 
 .person__game {
   padding: 4px 10px;
-  border-radius: 999px;
-  background: rgb(255 255 255 / 0.18);
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.4);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
 
+/* Общие игры — белая рамка со свечением */
 .person__game--common {
-  background: rgb(62 230 193 / 0.3);
-  box-shadow: inset 0 0 0 1px var(--accent);
+  border-color: #fff;
+  box-shadow: 0 0 10px rgb(255 255 255 / 0.35), inset 0 0 8px rgb(255 255 255 / 0.12);
 }
 
 .person__reasons {
   margin: 10px 0 0;
   font-size: 13px;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--g-700);
+}
+
+.person__reasons::before {
+  content: '✦ ';
 }
 
 .person__bio {

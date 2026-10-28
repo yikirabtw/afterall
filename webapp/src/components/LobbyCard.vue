@@ -4,7 +4,7 @@ import { computed } from 'vue'
 import type { Lobby } from '../api/types'
 import { formatStart } from '../format'
 import { LOBBY_STATUS_LABELS, MEMBER_STATUS_LABELS, PLAY_STYLE_LABELS } from '../labels'
-import { gameTitle, rankRangeLabel } from '../lobby'
+import { gameColor, gameTitle, rankRangeLabel } from '../lobby'
 import { haptic } from '../telegram'
 
 const props = defineProps<{ lobby: Lobby; showMyStatus?: boolean }>()
@@ -21,7 +21,12 @@ const statusBadge = computed(() => {
 </script>
 
 <template>
-  <RouterLink :to="`/lobby/${lobby.id}`" class="lobby card" @click="haptic.tap()">
+  <RouterLink
+    :to="`/lobby/${lobby.id}`"
+    class="lobby card"
+    :style="{ '--game': gameColor(lobby.game_id) }"
+    @click="haptic.tap()"
+  >
     <header class="lobby__top">
       <span class="lobby__game">{{ gameTitle(lobby) }}</span>
       <span class="lobby__when">{{ formatStart(lobby.starts_at) }}</span>
@@ -45,7 +50,7 @@ const statusBadge = computed(() => {
         <span v-if="lobby.owner.reputation > 0" class="lobby__rep">+{{ lobby.owner.reputation }}</span>
       </span>
       <span class="lobby__slots" :class="{ 'lobby__slots--last': freeSlots === 1 }">
-        <span class="lobby__dots" aria-hidden="true">
+        <span class="lobby__cells" aria-hidden="true">
           <i v-for="n in lobby.slots_total" :key="n" :class="{ taken: n <= lobby.slots_taken }" />
         </span>
         {{ lobby.slots_taken }}/{{ lobby.slots_total }}
@@ -56,46 +61,65 @@ const statusBadge = computed(() => {
 
 <style scoped>
 .lobby {
+  position: relative;
   display: block;
+  overflow: hidden;
+  padding-left: 20px;
   color: inherit;
   text-decoration: none;
-  transition: transform 0.08s ease;
+  transition: transform 0.08s ease, border-color 0.15s ease;
 }
 
 .lobby:active {
   transform: scale(0.99);
+  border-color: var(--line-strong);
+}
+
+/* Светящаяся полоска цвета игры слева — как в шпаргалке по цветам */
+.lobby::before {
+  content: '';
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  left: 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--game);
+  box-shadow: 0 0 10px 1px var(--game), 0 0 36px 6px color-mix(in srgb, var(--game) 35%, transparent);
 }
 
 .lobby__top {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  font-size: 13px;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .lobby__game {
-  color: var(--accent);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  color: var(--text);
 }
 
 .lobby__when {
-  color: var(--warm);
+  color: var(--text-2);
 }
 
 .lobby__title {
   margin: 8px 0 0;
-  font-size: 18px;
-  font-weight: 800;
-  line-height: 1.25;
+  font-family: var(--font-title);
+  font-size: 19px;
+  font-weight: 400;
+  line-height: 1.2;
   overflow-wrap: anywhere;
 }
 
 .lobby__description {
   margin: 6px 0 0;
   font-size: 15px;
-  color: var(--hint);
+  color: var(--text-2);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -118,12 +142,12 @@ const statusBadge = computed(() => {
   gap: 8px;
   margin-top: 14px;
   padding-top: 12px;
-  border-top: 1px solid var(--line);
+  border-top: 1px dashed var(--line-strong);
   font-size: 14px;
 }
 
 .lobby__owner {
-  color: var(--hint);
+  color: var(--text-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -131,7 +155,7 @@ const statusBadge = computed(() => {
 
 .lobby__rep {
   margin-left: 4px;
-  color: var(--accent);
+  color: var(--ok);
   font-weight: 700;
 }
 
@@ -139,29 +163,31 @@ const statusBadge = computed(() => {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-pixel);
+  font-size: 16px;
 }
 
-.lobby__dots {
+/* Места — пиксельные клетки: занятые светятся */
+.lobby__cells {
   display: inline-flex;
   gap: 3px;
 }
 
-.lobby__dots i {
+.lobby__cells i {
   width: 8px;
   height: 8px;
-  border-radius: 50%;
-  border: 1.5px solid var(--hint);
+  border: 1px solid var(--g-400);
 }
 
-.lobby__dots i.taken {
+.lobby__cells i.taken {
   border-color: var(--accent);
   background: var(--accent);
+  box-shadow: 0 0 6px rgb(255 255 255 / 0.7);
 }
 
-/* Осталось одно место — подсвечиваем тёплым, чтобы цепляло взгляд */
+/* Осталось одно место — подсвечиваем жёлтым, чтобы цепляло взгляд */
 .lobby__slots--last {
-  color: var(--warm);
+  color: var(--warn);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--warn) 60%, transparent);
 }
 </style>

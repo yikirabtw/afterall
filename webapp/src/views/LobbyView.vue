@@ -7,7 +7,7 @@ import type { LobbyDetail, LobbyMember, MemberDecision } from '../api/types'
 import PageHeader from '../components/PageHeader.vue'
 import { formatStart } from '../format'
 import { LOBBY_STATUS_LABELS, PLAY_STYLE_LABELS } from '../labels'
-import { ACTIVE_STATUSES, faceitLabel, gameTitle, rankName, rankRangeLabel, roleNames } from '../lobby'
+import { ACTIVE_STATUSES, faceitLabel, gameColor, gameTitle, rankName, rankRangeLabel, roleNames } from '../lobby'
 import { confirmAction, haptic, openExternal } from '../telegram'
 
 const props = defineProps<{ id: number }>()
@@ -158,7 +158,7 @@ async function copyDiscord(tag: string) {
     </div>
 
     <template v-else-if="lobby">
-      <section class="card hero">
+      <section class="card card--lit hero" :style="{ '--game': gameColor(lobby.game_id) }">
         <header class="hero__top">
           <span class="hero__game">{{ gameTitle(lobby) }}</span>
           <span class="hero__when">{{ formatStart(lobby.starts_at) }}</span>
@@ -177,7 +177,7 @@ async function copyDiscord(tag: string) {
         <footer class="hero__bottom">
           <span class="hint">Собирает {{ lobby.is_owner ? 'ты' : lobby.owner.display_name }}</span>
           <span class="slots">
-            <span class="slots__dots" aria-hidden="true">
+            <span class="slots__cells" aria-hidden="true">
               <i v-for="n in lobby.slots_total" :key="n" :class="{ taken: n <= lobby.slots_taken }" />
             </span>
             {{ lobby.slots_taken }}/{{ lobby.slots_total }}
@@ -192,7 +192,12 @@ async function copyDiscord(tag: string) {
           <b>Где собираемся</b>
           <p class="hint">{{ lobby.contact_link.replace(/^https:\/\//, '') }}</p>
         </div>
-        <button class="btn btn-primary btn-small" type="button" @click="openChat">{{ contactLabel }}</button>
+        <button class="btn btn-primary btn-small" type="button" @click="openChat">
+          {{ contactLabel }}
+          <svg class="btn__arrow" viewBox="0 0 14 14" aria-hidden="true">
+            <path d="M3 11L11 3M5 3h6v6" fill="none" stroke="currentColor" stroke-width="1.5" />
+          </svg>
+        </button>
       </section>
 
       <template v-if="lobby.is_owner && pending.length">
@@ -303,35 +308,53 @@ async function copyDiscord(tag: string) {
   padding: 40px 0;
 }
 
+.hero {
+  margin-top: 8px;
+}
+
 .hero__top {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  font-size: 13px;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
+/* Название игры с огоньком её цвета */
 .hero__game {
-  color: var(--accent);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hero__game::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--game);
+  box-shadow: 0 0 8px 1px var(--game);
 }
 
 .hero__when {
-  color: var(--warm);
+  color: var(--text-2);
 }
 
 .hero__title {
-  margin: 8px 0 0;
-  font-size: 22px;
-  font-weight: 800;
+  margin: 10px 0 0;
+  font-family: var(--font-title);
+  font-size: 24px;
+  font-weight: 400;
   line-height: 1.2;
   overflow-wrap: anywhere;
 }
 
 .hero__description {
   margin: 8px 0 0;
-  color: var(--hint);
+  color: var(--text-2);
   white-space: pre-line;
   overflow-wrap: anywhere;
 }
@@ -352,7 +375,7 @@ async function copyDiscord(tag: string) {
   gap: 8px;
   margin-top: 14px;
   padding-top: 12px;
-  border-top: 1px solid var(--line);
+  border-top: 1px dashed var(--line-strong);
 }
 
 .hero__bottom .hint {
@@ -363,46 +386,51 @@ async function copyDiscord(tag: string) {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-pixel);
+  font-size: 18px;
 }
 
-.slots__dots {
+.slots__cells {
   display: inline-flex;
   flex-wrap: wrap;
   gap: 3px;
   max-width: 120px;
 }
 
-.slots__dots i {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  border: 1.5px solid var(--hint);
+.slots__cells i {
+  width: 9px;
+  height: 9px;
+  border: 1px solid var(--g-400);
 }
 
-.slots__dots i.taken {
+.slots__cells i.taken {
   border-color: var(--accent);
   background: var(--accent);
+  box-shadow: 0 0 6px rgb(255 255 255 / 0.7);
 }
 
+/* Плашка статуса: слева светящаяся полоска цвета состояния */
 .banner {
   margin: 12px 0 0;
-  padding: 12px 14px;
+  padding: 12px 14px 12px 16px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--tone);
   border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--tone) 8%, var(--card));
+  box-shadow: -4px 0 14px -4px var(--tone);
   font-weight: 600;
 }
 
 .banner--accent {
-  background: var(--accent-soft);
+  --tone: var(--ok);
 }
 
 .banner--warm {
-  background: var(--warm-soft);
+  --tone: var(--warn);
 }
 
 .banner--muted {
-  background: var(--line);
+  --tone: var(--g-500);
 }
 
 .contact {
@@ -436,7 +464,7 @@ async function copyDiscord(tag: string) {
 }
 
 .member + .member {
-  border-top: 1px solid var(--line);
+  border-top: 1px dashed var(--line-strong);
 }
 
 .member__avatar {
@@ -445,10 +473,13 @@ async function copyDiscord(tag: string) {
   place-items: center;
   width: 40px;
   height: 40px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, var(--accent), var(--warm));
-  color: var(--accent-ink);
-  font-weight: 900;
+  border: 1px solid var(--line-strong);
+  border-radius: 11px;
+  background: var(--g-100);
+  color: var(--text);
+  font-family: var(--font-pixel);
+  font-size: 20px;
+  text-shadow: 0 0 8px rgb(255 255 255 / 0.6);
 }
 
 .member__body {
@@ -457,6 +488,7 @@ async function copyDiscord(tag: string) {
 }
 
 .member__name {
+  font-family: var(--font-title);
   display: flex;
   align-items: center;
   gap: 8px;

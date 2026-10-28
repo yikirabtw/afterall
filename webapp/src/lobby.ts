@@ -27,6 +27,21 @@ export function gameTitle(lobby: Pick<Lobby, 'game_id'>): string {
   return gameById(lobby.game_id)?.name ?? 'Просто посидеть'
 }
 
+// Цвет игры — светящаяся полоска на карточках (цвет в визуале только точечный)
+const GAME_COLORS: Record<string, string> = {
+  dota2: '#ff4b3e',
+  cs2: '#ffa62b',
+  valorant: '#ff3d8b',
+  minecraft: '#3ddc6a',
+}
+const NO_GAME_COLOR = '#7b5cff' // «Просто посидеть»
+
+export function gameColor(gameId: number | null): string {
+  const slug = gameById(gameId)?.slug
+  if (!slug) return NO_GAME_COLOR
+  return GAME_COLORS[slug] ?? '#d4d4d4'
+}
+
 // Верхние границы ELO для уровней FACEIT 1–9; выше 2000 — 10 уровень
 const FACEIT_LEVEL_MAX = [500, 750, 900, 1050, 1200, 1350, 1530, 1750, 2000]
 

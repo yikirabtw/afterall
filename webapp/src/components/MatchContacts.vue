@@ -28,7 +28,10 @@ async function copyDiscord(tag: string) {
       type="button"
       @click="openExternal(`https://t.me/${match.username}`)"
     >
-      Написать @{{ match.username }}
+      Написать <span class="contacts__nick">@{{ match.username }}</span>
+      <svg class="btn__arrow" viewBox="0 0 14 14" aria-hidden="true">
+        <path d="M3 11L11 3M5 3h6v6" fill="none" stroke="currentColor" stroke-width="1.5" />
+      </svg>
     </button>
     <button v-if="match.discord_tag" class="chip" type="button" @click="copyDiscord(match.discord_tag)">
       {{ copied ? 'Скопировано' : `Discord: ${match.discord_tag}` }}
@@ -40,6 +43,12 @@ async function copyDiscord(tag: string) {
 </template>
 
 <style scoped>
+/* Ник — как есть, без капса кнопки */
+.contacts__nick {
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
 .contacts {
   display: flex;
   flex-wrap: wrap;

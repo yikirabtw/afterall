@@ -119,7 +119,7 @@ function reset() {
   z-index: 50;
   display: flex;
   align-items: flex-end;
-  background: rgb(0 0 0 / 0.5);
+  background: rgb(0 0 0 / 0.7);
 }
 
 .sheet {
@@ -129,8 +129,11 @@ function reset() {
   margin: 0 auto;
   padding: 8px 16px calc(16px + var(--safe-bottom));
   overflow-y: auto;
-  border-radius: 24px 24px 0 0;
-  background: var(--page);
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: 22px 22px 0 0;
+  background: var(--g-50);
+  box-shadow: 0 -1px 0 rgb(255 255 255 / 0.06), 0 -20px 60px rgb(0 0 0 / 0.6);
 }
 
 .sheet__handle {
@@ -138,13 +141,15 @@ function reset() {
   height: 4px;
   margin: 0 auto 12px;
   border-radius: 2px;
-  background: var(--line);
+  background: var(--g-400);
 }
 
 .sheet__title {
-  margin: 0 0 16px;
-  font-size: 20px;
-  font-weight: 800;
+  margin: 0 0 18px;
+  font-family: var(--font-pixel);
+  font-size: 24px;
+  font-weight: 400;
+  text-transform: uppercase;
 }
 
 .sheet__actions {

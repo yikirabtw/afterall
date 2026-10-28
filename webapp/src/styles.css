@@ -1,29 +1,68 @@
 /*
-  Дизайн-токены. Фон и текст берём из темы Telegram (переменные --tg-theme-* выставляет SDK),
-  поэтому приложение выглядит родным и в светлой, и в тёмной теме.
-  Фирменные цвета — мятный акцент и тёплый янтарь — одинаковы в обеих темах.
-  Значения после запятой — запасные, для разработки в обычном браузере.
+  Дизайн-токены. Визуал — по референсам из папки «визуал»: чёрный монохром (шкала Dark),
+  белое свечение и свет «сверху», цвет — только точечно, в светящихся акцентах.
+  Приложение всегда тёмное, тему Telegram не повторяем: свечение на светлом фоне не работает.
 */
+@import '@fontsource/tiny5/400.css';
+@import '@fontsource/tektur/500.css';
+@import '@fontsource/russo-one/400.css';
+
 :root {
-  --page: var(--tg-theme-secondary-bg-color, #0d0f13);
-  --card: var(--tg-theme-section-bg-color, var(--tg-theme-bg-color, #171a21));
-  --text: var(--tg-theme-text-color, #f1f3f7);
-  --hint: var(--tg-theme-hint-color, #8a93a6);
-  --line: color-mix(in srgb, var(--hint) 22%, transparent);
-  --danger: var(--tg-theme-destructive-text-color, #ff5d5d);
+  /* Шкала Dark: 0 → 950 */
+  --g-0: #000000;
+  --g-50: #0a0a0a;
+  --g-100: #171717;
+  --g-200: #262626;
+  --g-300: #373737;
+  --g-400: #525252;
+  --g-500: #8a8a8a;
+  --g-600: #a3a3a3;
+  --g-700: #d4d4d4;
+  --g-800: #e5e5e5;
+  --g-950: #fafafa;
 
-  --accent: #3ee6c1;
-  --accent-ink: #052820;
-  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
-  --warm: #ffb547;
-  --warm-soft: color-mix(in srgb, var(--warm) 18%, transparent);
+  --page: var(--g-0);
+  --card: var(--g-50);
+  --raised: var(--g-100);
+  --line: var(--g-200);
+  --line-strong: var(--g-300);
+  --text: var(--g-950);
+  --text-2: var(--g-600);
+  --hint: var(--g-500);
 
-  --radius: 18px;
-  --radius-sm: 12px;
+  /* Главный акцент — белый, «хромовый» */
+  --accent: var(--g-950);
+  --accent-ink: var(--g-0);
+
+  /* Цвет — частично: статусы и игры, всегда со свечением */
+  --ok: #3ddc6a;
+  --warn: #ffc93c;
+  --danger: #ff4b3e;
+  --violet: #7b5cff;
+  --ok-soft: color-mix(in srgb, var(--ok) 14%, transparent);
+  --warn-soft: color-mix(in srgb, var(--warn) 14%, transparent);
+  --danger-soft: color-mix(in srgb, var(--danger) 14%, transparent);
+
+  /* Свечение: три ступени как в референсе (blur 8 / 32 / 128) */
+  --glow-1: 0 0 8px rgb(255 255 255 / 0.55);
+  --glow-2: 0 0 32px 4px rgb(255 255 255 / 0.22);
+  --glow-3: 0 0 128px 32px rgb(255 255 255 / 0.12);
+  /* Блик сверху у карточек — «свет падает сверху» */
+  --edge-light: inset 0 1px 0 rgb(255 255 255 / 0.07);
+
+  --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  /* Tektur — подписи и кнопки капсом; у его строчной «д» латинская форма, поэтому заголовки — Russo One */
+  --font-display: 'Tektur', var(--font-body);
+  --font-title: 'Russo One', var(--font-body);
+  --font-pixel: 'Tiny5', ui-monospace, monospace;
+
+  --radius: 16px;
+  --radius-sm: 10px;
+  --radius-btn: 6px;
   --gap: 12px;
   --safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--tg-safe-area-inset-bottom, 0px));
 
-  color-scheme: light dark;
+  color-scheme: dark;
 }
 
 * {
@@ -35,7 +74,7 @@ body {
   margin: 0;
   background: var(--page);
   color: var(--text);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: var(--font-body);
   font-size: 16px;
   line-height: 1.4;
   -webkit-font-smoothing: antialiased;
@@ -50,6 +89,11 @@ select {
   color: inherit;
 }
 
+::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
 /* --- Раскладка --- */
 
 .page {
@@ -59,11 +103,16 @@ select {
   margin: 0 auto;
 }
 
+/* Заголовки экранов — пиксельные, как в референсе полного визуала */
 .page-title {
   margin: 4px 0 16px;
-  font-size: 28px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-family: var(--font-pixel);
+  font-size: 32px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  text-shadow: 0 0 14px rgb(255 255 255 / 0.22);
 }
 
 /* Заголовок экрана с кнопкой справа */
@@ -83,13 +132,24 @@ a.btn {
   text-decoration: none;
 }
 
+/* Подпись раздела с пунктирной линией до края */
 .section-title {
-  margin: 24px 0 8px;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 28px 0 10px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--hint);
+  color: var(--text-2);
+}
+
+.section-title::after {
+  content: '';
+  flex: 1;
+  border-top: 1px dashed var(--line-strong);
 }
 
 .hint {
@@ -106,8 +166,27 @@ a.btn {
 
 .card {
   background: var(--card);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
+  box-shadow: var(--edge-light);
   padding: 16px;
+}
+
+/* Карточка «под лампой»: светящаяся полоса над верхним краем */
+.card--lit {
+  position: relative;
+}
+
+.card--lit::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 14%;
+  right: 14%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #fff 30%, #fff 70%, transparent);
+  box-shadow: 0 0 12px 1px rgb(255 255 255 / 0.55), 0 0 40px 6px rgb(255 255 255 / 0.12);
+  pointer-events: none;
 }
 
 .stack {
@@ -144,11 +223,15 @@ a.btn {
   gap: 8px;
   min-height: 52px;
   padding: 0 20px;
-  border: 0;
-  border-radius: var(--radius-sm);
-  font-weight: 700;
+  border: 1px solid transparent;
+  border-radius: var(--radius-btn);
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   cursor: pointer;
-  transition: transform 0.08s ease, opacity 0.15s ease;
+  transition: transform 0.08s ease, opacity 0.15s ease, box-shadow 0.2s ease;
 }
 
 .btn:active {
@@ -156,25 +239,44 @@ a.btn {
 }
 
 .btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: default;
 }
 
 .btn-primary {
   background: var(--accent);
   color: var(--accent-ink);
+  box-shadow: 0 0 22px rgb(255 255 255 / 0.18);
+}
+
+.btn-primary:active {
+  box-shadow: var(--glow-1), var(--glow-2);
+}
+
+/* Контурная — как «Browse apps» в референсе */
+.btn-outline {
+  background: transparent;
+  border-color: var(--g-400);
+  color: var(--text);
 }
 
 .btn-ghost {
   background: transparent;
-  color: var(--hint);
+  color: var(--text-2);
   min-height: 40px;
 }
 
 .btn-small {
   min-height: 40px;
   padding: 0 16px;
-  font-size: 15px;
+  font-size: 13px;
+}
+
+/* Стрелка ↗ у кнопок, которые ведут наружу */
+.btn__arrow {
+  width: 14px;
+  height: 14px;
+  flex: none;
 }
 
 /* --- Поля --- */
@@ -186,9 +288,12 @@ a.btn {
 }
 
 .field__label {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--hint);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-2);
 }
 
 .input {
@@ -199,15 +304,25 @@ a.btn {
   border-radius: var(--radius-sm);
   background: var(--card);
   outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.input::placeholder {
+  color: var(--g-400);
 }
 
 .input:focus {
-  border-color: var(--accent);
+  border-color: var(--g-600);
+  box-shadow: 0 0 0 3px rgb(255 255 255 / 0.06), 0 0 18px rgb(255 255 255 / 0.08);
 }
 
 textarea.input {
   min-height: 88px;
   resize: vertical;
+}
+
+input[type='date'].input {
+  color-scheme: dark;
 }
 
 /* --- Чипы и переключатели --- */
@@ -229,18 +344,21 @@ textarea.input {
 .chip {
   flex: none;
   padding: 8px 14px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
   background: var(--card);
+  color: var(--g-700);
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .chip--on {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-ink);
+  box-shadow: 0 0 14px rgb(255 255 255 / 0.3);
 }
 
 .segmented {
@@ -249,6 +367,7 @@ textarea.input {
   grid-auto-flow: column;
   gap: 4px;
   padding: 4px;
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--card);
 }
@@ -256,16 +375,21 @@ textarea.input {
 .segmented button {
   min-height: 40px;
   border: 0;
-  border-radius: 9px;
+  border-radius: 7px;
   background: transparent;
-  font-size: 14px;
-  font-weight: 600;
+  color: var(--text-2);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   cursor: pointer;
 }
 
 .segmented button[aria-pressed='true'] {
   background: var(--accent);
   color: var(--accent-ink);
+  box-shadow: 0 0 16px rgb(255 255 255 / 0.25);
 }
 
 .toggle-row {
@@ -282,11 +406,12 @@ textarea.input {
   width: 48px;
   height: 28px;
   margin: 0;
+  border: 1px solid var(--line-strong);
   border-radius: 999px;
-  background: var(--line);
+  background: var(--raised);
   position: relative;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .switch::after {
@@ -294,18 +419,21 @@ textarea.input {
   position: absolute;
   top: 3px;
   left: 3px;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  background: #fff;
-  transition: transform 0.15s ease;
+  background: var(--g-500);
+  transition: transform 0.15s ease, background 0.15s ease;
 }
 
 .switch:checked {
   background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 14px rgb(255 255 255 / 0.3);
 }
 
 .switch:checked::after {
+  background: var(--g-0);
   transform: translateX(20px);
 }
 
@@ -316,46 +444,103 @@ textarea.input {
   align-items: center;
   gap: 4px;
   padding: 3px 9px;
-  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  color: var(--g-700);
   font-size: 13px;
-  font-weight: 600;
-  background: var(--line);
+  font-weight: 500;
+  background: var(--raised);
 }
 
 .badge--accent {
-  background: var(--accent-soft);
+  border-color: var(--g-700);
+  color: var(--text);
+  box-shadow: 0 0 10px rgb(255 255 255 / 0.15);
+}
+
+.badge--ok {
+  border-color: color-mix(in srgb, var(--ok) 60%, transparent);
+  background: var(--ok-soft);
   color: var(--text);
 }
 
 .badge--warm {
-  background: var(--warm-soft);
+  border-color: color-mix(in srgb, var(--warn) 60%, transparent);
+  background: var(--warn-soft);
   color: var(--text);
 }
 
 /* --- Пустые состояния и загрузка --- */
 
+/* Пустое состояние — под светящейся полосой, как «200 · Thank you» в референсе */
 .empty {
-  padding: 40px 16px;
+  position: relative;
+  margin-top: 28px;
+  padding: 36px 16px 32px;
   text-align: center;
+}
+
+.empty::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 18%;
+  right: 18%;
+  height: 2px;
+  border-radius: 1px;
+  background: #fff;
+  box-shadow: 0 0 10px 1px rgb(255 255 255 / 0.7), 0 6px 60px 10px rgb(255 255 255 / 0.1);
 }
 
 .empty__title {
   margin: 0 0 6px;
-  font-size: 18px;
-  font-weight: 700;
+  font-family: var(--font-pixel);
+  font-size: 22px;
+  line-height: 1.1;
+  text-transform: uppercase;
 }
 
 .empty__cta {
   margin-top: 16px;
 }
 
+.empty__art {
+  width: 132px;
+  margin: 0 auto 18px;
+}
+
+/* Индикатор загрузки — кольцо со светящейся дугой (из набора виджетов) */
 .spinner {
   width: 28px;
   height: 28px;
-  border: 3px solid var(--line);
+  border: 2px solid var(--line-strong);
   border-top-color: var(--accent);
   border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  filter: drop-shadow(0 0 4px rgb(255 255 255 / 0.6));
+  animation: spin 0.9s linear infinite;
+}
+
+/* Три точки — второй вариант загрузки из набора виджетов */
+.dots-loader {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.dots-loader i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: var(--glow-1);
+  animation: dot-fade 1.2s ease-in-out infinite;
+}
+
+.dots-loader i:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.dots-loader i:nth-child(3) {
+  animation-delay: 0.4s;
 }
 
 @keyframes spin {
@@ -364,12 +549,29 @@ textarea.input {
   }
 }
 
+@keyframes dot-fade {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+
+  40% {
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .spinner {
     animation-duration: 2s;
   }
 
+  .dots-loader i {
+    animation: none;
+    opacity: 0.8;
+  }
+
   .btn,
+  .chip,
   .switch,
   .switch::after {
     transition: none;

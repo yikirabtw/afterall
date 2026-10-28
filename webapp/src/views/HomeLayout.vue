@@ -34,31 +34,53 @@ const TABS = [
   display: flex;
   gap: 4px;
   padding: 6px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--card) 88%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgb(10 10 10 / 0.86);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 8px 28px rgb(0 0 0 / 0.28);
-  border: 1px solid var(--line);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.6), var(--edge-light);
   z-index: 10;
 }
 
 .tabbar__item {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  min-width: 76px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  color: var(--hint);
-  font-size: 12px;
-  font-weight: 700;
+  gap: 3px;
+  min-width: 78px;
+  padding: 7px 12px 6px;
+  border-radius: 12px;
+  color: var(--g-500);
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   text-decoration: none;
+  transition: color 0.15s ease, background 0.15s ease;
 }
 
+/* Активная вкладка — «под лампой»: светящаяся полоса над ней и мягкий свет вниз */
 .tabbar__item.router-link-active {
-  background: var(--accent);
-  color: var(--accent-ink);
+  color: var(--text);
+  background: linear-gradient(to bottom, rgb(255 255 255 / 0.1), transparent 80%);
+}
+
+.tabbar__item.router-link-active::before {
+  content: '';
+  position: absolute;
+  top: -7px;
+  left: 22%;
+  right: 22%;
+  height: 2px;
+  border-radius: 1px;
+  background: #fff;
+  box-shadow: 0 0 8px 1px rgb(255 255 255 / 0.8), 0 4px 18px 2px rgb(255 255 255 / 0.25);
+}
+
+.tabbar__item.router-link-active svg {
+  filter: drop-shadow(0 0 5px rgb(255 255 255 / 0.6));
 }
 </style>

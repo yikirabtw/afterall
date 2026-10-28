@@ -138,8 +138,9 @@ function faceitValid(elo: number | null): elo is number {
 
 .choice__title {
   margin: 0;
+  font-family: var(--font-title);
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .card .field__label {
@@ -163,10 +164,12 @@ function faceitValid(elo: number | null): elo is number {
 
 .faceit__level {
   flex: none;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: var(--warm-soft);
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
+  padding: 6px 10px 5px;
+  border: 1px solid var(--warn);
+  border-radius: 6px;
+  color: var(--warn);
+  font-family: var(--font-pixel);
+  font-size: 16px;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--warn) 40%, transparent);
 }
 </style>
