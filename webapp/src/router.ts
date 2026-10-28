@@ -1,5 +1,6 @@
 import { createMemoryHistory, createRouter } from 'vue-router'
 
+import { originOf, rememberOrigin, reveal, takeOrigin, type RevealShape } from './reveal'
 import { session } from './stores/session'
 import CreateLobbyView from './views/CreateLobbyView.vue'
 import EditGamesView from './views/EditGamesView.vue'
@@ -52,7 +53,28 @@ router.afterEach((_to, from) => {
   cameFromApp = from.matched.length > 0
 })
 
+/** Шаг назад в истории; промис — когда новый экран уже выбран */
+function back(): Promise<unknown> {
+  if (!cameFromApp) return router.replace('/feed')
+  return new Promise<void>((resolve) => {
+    const stop = router.afterEach(() => {
+      stop()
+      resolve()
+    })
+    router.back()
+  })
+}
+
 export function goBack(): void {
-  if (cameFromApp) router.back()
-  else void router.replace('/feed')
+  // Экран открыт «расплытием» — сворачиваем его обратно туда, откуда вырос
+  const saved = takeOrigin(router.currentRoute.value.path)
+  if (saved) void reveal(saved.origin, back, 'close', saved.shape)
+  else void back()
+}
+
+/** Открыть экран «расплытием» из нажатого элемента; «Назад» свернёт его обратно */
+export function openFrom(el: Element, path: string, shape: RevealShape = 'circle'): void {
+  const origin = originOf(el)
+  rememberOrigin(path, origin, shape)
+  void reveal(origin, () => router.push(path), 'open', shape)
 }

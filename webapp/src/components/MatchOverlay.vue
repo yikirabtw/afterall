@@ -16,7 +16,7 @@ const myInitial = computed(() => session.me?.profile?.display_name.charAt(0).toU
 
 <template>
   <Teleport to="body">
-    <div class="overlay" role="dialog" aria-label="Взаимный лайк">
+    <div class="overlay theme-dark" role="dialog" aria-label="Взаимный лайк">
       <!-- Лампа над экраном: свет падает на надпись, как в референсе со светом -->
       <div class="lamp" aria-hidden="true">
         <span class="lamp__cord" />

@@ -50,6 +50,15 @@ export function faceitLevel(elo: number): number {
   return index === -1 ? 10 : index + 1
 }
 
+/** Цвета уровней как в самом FACEIT: 1 — белый, 2–3 — зелёный, 4–7 — жёлтый, 8–9 — оранжевый, 10 — красный */
+export function faceitColor(level: number): string {
+  if (level >= 10) return '#fe1f00'
+  if (level >= 8) return '#ff6309'
+  if (level >= 4) return '#ffc800'
+  if (level >= 2) return '#1ce400'
+  return 'var(--faceit-1)' // белый в тёмной теме, серый в светлой — см. styles.css
+}
+
 /** «FACEIT 2150 · 10 lvl» */
 export function faceitLabel(elo: number): string {
   return `FACEIT ${elo} · ${faceitLevel(elo)} lvl`

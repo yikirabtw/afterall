@@ -44,7 +44,9 @@ export function gamesError(choices: UserGameInput[]): string | null {
 
 /** Свои игры для редактирования — без выключенных игр: их больше нельзя выбрать */
 export function gameChoicesFrom(me: Me, activeGameIds: Set<number>): UserGameInput[] {
+  // Основная — первой: в редакторе основная та, что вверху списка
   return me.games
     .filter((game) => activeGameIds.has(game.game_id))
+    .sort((a, b) => Number(b.is_main) - Number(a.is_main))
     .map(({ game_id, rank_id, role_ids, faceit_elo, is_main }) => ({ game_id, rank_id, role_ids, faceit_elo, is_main }))
 }

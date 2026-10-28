@@ -184,6 +184,8 @@ export interface FeedParams {
 export interface Photo {
   id: number
   url: string // подписанная ссылка, живёт несколько часов
+  width: number
+  height: number
 }
 
 export type ReactionKind = 'like' | 'skip'

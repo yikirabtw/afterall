@@ -9,7 +9,7 @@ import AsciiLogo from './AsciiLogo.vue'
 </script>
 
 <template>
-  <div class="splash">
+  <div class="splash theme-dark">
     <div class="splash__bg" aria-hidden="true">
       <video class="splash__video" :src="bgVideo" :poster="bgPoster" autoplay muted loop playsinline />
       <img class="splash__light" :src="lightImage" alt="" />

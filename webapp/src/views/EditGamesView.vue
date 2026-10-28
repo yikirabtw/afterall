@@ -40,7 +40,7 @@ async function save() {
 <template>
   <main class="page">
     <PageHeader title="Игры" />
-    <p class="lead">Первая выбранная игра — основная. Чтобы сделать основной другую, сними выбор и выбери заново.</p>
+    <p class="lead">Основная игра — первая в анкете и главная в подборе. Поменять можно кнопкой на карточке.</p>
 
     <GamesPicker v-model="choices" />
 

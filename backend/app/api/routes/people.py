@@ -71,7 +71,7 @@ def _age(user: User, today: date) -> int | None:
 
 
 def _photos(user: User, photo_url: Callable[[int], str]) -> list[PhotoOut]:
-    return [PhotoOut(id=photo.id, url=photo_url(photo.id)) for photo in user.photos]
+    return [PhotoOut(id=photo.id, url=photo_url(photo.id), width=photo.width, height=photo.height) for photo in user.photos]
 
 
 def _person_out(user: User, match: Compatibility, photo_url: Callable[[int], str], today: date) -> PersonOut:

@@ -4,9 +4,11 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { api } from '../api/client'
 import { errorMessage } from '../api/errors'
 import type { Lobby } from '../api/types'
+import GameSelect from '../components/GameSelect.vue'
 import LobbyCard from '../components/LobbyCard.vue'
 import MyLobbiesList from '../components/MyLobbiesList.vue'
 import WireCubes from '../components/WireCubes.vue'
+import { openFrom } from '../router'
 import { session } from '../stores/session'
 import { lobbiesTab } from '../stores/ui'
 import { haptic } from '../telegram'
@@ -43,9 +45,10 @@ async function load(more = false) {
   }
 }
 
-function selectGame(gameId: number | null) {
-  haptic.select()
-  gameFilter.value = gameId
+// «Создать»: экран новой пати вырастает из нажатой кнопки
+function create(event: MouseEvent) {
+  haptic.tap()
+  openFrom(event.currentTarget as Element, '/create', 'morph')
 }
 
 watch([gameFilter, fitsMe], () => load())
@@ -56,10 +59,10 @@ onMounted(() => load())
   <main class="page">
     <header class="page-top">
       <h1 class="page-title">Пати</h1>
-      <RouterLink to="/create" class="btn btn-primary btn-small" @click="haptic.tap()">+ Создать</RouterLink>
+      <button class="btn btn-primary btn-small" type="button" @click="create">+ Создать</button>
     </header>
 
-    <div class="segmented tabs">
+    <div v-jelly.soft class="segmented tabs">
       <button type="button" :aria-pressed="lobbiesTab === 'all'" @click="(lobbiesTab = 'all'), haptic.select()">
         Все пати
       </button>
@@ -70,21 +73,7 @@ onMounted(() => load())
 
     <MyLobbiesList v-if="lobbiesTab === 'mine'" />
     <template v-else>
-      <div class="chips chips--scroll">
-        <button type="button" class="chip" :class="{ 'chip--on': gameFilter === null }" @click="selectGame(null)">
-          Все
-        </button>
-        <button
-          v-for="game in filterGames"
-          :key="game.id"
-          type="button"
-          class="chip"
-          :class="{ 'chip--on': gameFilter === game.id }"
-          @click="selectGame(game.id)"
-        >
-          {{ game.name }}
-        </button>
-      </div>
+      <GameSelect v-model="gameFilter" :games="filterGames" any-label="Все игры" />
 
       <label class="card toggle-row fits">
         <span>
@@ -109,9 +98,9 @@ onMounted(() => load())
         <p class="hint">
           {{ gameFilter || fitsMe ? 'Попробуй убрать фильтры.' : 'Собери свою — остальные увидят её здесь.' }}
         </p>
-        <RouterLink v-if="!gameFilter && !fitsMe" to="/create" class="btn btn-primary btn-small empty__cta">
+        <button v-if="!gameFilter && !fitsMe" class="btn btn-primary btn-small empty__cta" type="button" @click="create">
           Создать пати
-        </RouterLink>
+        </button>
       </div>
       <div v-else-if="nextCursor" class="center">
         <button class="btn btn-ghost" type="button" @click="load(true)">Показать ещё</button>

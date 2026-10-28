@@ -93,7 +93,7 @@ onMounted(load)
   color: var(--text);
   font-family: var(--font-pixel);
   font-size: 30px;
-  text-shadow: 0 0 10px rgb(255 255 255 / 0.6);
+  text-shadow: 0 0 10px rgb(var(--glow-rgb) / 0.6);
 }
 
 .match__avatar img {

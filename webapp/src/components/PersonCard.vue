@@ -3,8 +3,9 @@ import { computed } from 'vue'
 
 import type { Person } from '../api/types'
 import { PLAY_STYLE_LABELS } from '../labels'
-import { faceitLabel, rankName } from '../lobby'
+import { rankName } from '../lobby'
 import { gameById } from '../stores/session'
+import FaceitLevel from './FaceitLevel.vue'
 import PhotoCarousel from './PhotoCarousel.vue'
 
 const props = defineProps<{ person: Person }>()
@@ -16,13 +17,8 @@ const games = computed(() =>
     .sort((a, b) => Number(props.person.common_game_ids.includes(b.game_id)) - Number(props.person.common_game_ids.includes(a.game_id)))
     .map((game) => ({
       id: game.game_id,
-      label: [
-        gameById(game.game_id)?.name,
-        rankName(game.game_id, game.rank_id),
-        game.faceit_elo !== null ? faceitLabel(game.faceit_elo) : null,
-      ]
-        .filter(Boolean)
-        .join(' · '),
+      label: [gameById(game.game_id)?.name, rankName(game.game_id, game.rank_id)].filter(Boolean).join(' · '),
+      faceit: game.faceit_elo,
       common: props.person.common_game_ids.includes(game.game_id),
     })),
 )
@@ -47,6 +43,10 @@ const meta = computed(() =>
     <div class="person__games">
       <span v-for="game in games" :key="game.id" class="person__game" :class="{ 'person__game--common': game.common }">
         {{ game.label }}
+        <span v-if="game.faceit !== null" class="person__faceit">
+          <FaceitLevel :elo="game.faceit" :size="20" />
+          {{ game.faceit }}
+        </span>
       </span>
     </div>
     <p v-if="person.reasons.length" class="person__reasons">{{ person.reasons.join(' · ') }}</p>
@@ -133,6 +133,15 @@ const meta = computed(() =>
 }
 
 /* Общие игры — белая рамка со свечением */
+/* FACEIT в плашке игры: значок уровня и ELO */
+.person__faceit {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
 .person__game--common {
   border-color: #fff;
   box-shadow: 0 0 10px rgb(255 255 255 / 0.35), inset 0 0 8px rgb(255 255 255 / 0.12);

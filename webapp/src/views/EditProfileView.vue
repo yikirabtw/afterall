@@ -82,7 +82,7 @@ async function save() {
 </script>
 
 <template>
-  <main class="page">
+  <main class="page rise-in">
     <PageHeader title="Профиль" />
 
     <section>
@@ -233,7 +233,7 @@ async function save() {
   font-weight: 400;
   line-height: 1;
   color: var(--text);
-  text-shadow: 0 0 12px rgb(255 255 255 / 0.7);
+  text-shadow: 0 0 12px rgb(var(--glow-rgb) / 0.7);
 }
 
 .photo-slot__empty {

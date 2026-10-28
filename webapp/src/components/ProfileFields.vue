@@ -41,7 +41,7 @@ function toggleLanguage(code: string) {
 
     <div class="field">
       <span class="field__label">Кого ищешь</span>
-      <div class="segmented">
+      <div v-jelly.soft class="segmented">
         <button
           v-for="option in LOOKING_FOR"
           :key="option.value"
@@ -56,7 +56,7 @@ function toggleLanguage(code: string) {
 
     <div class="field">
       <span class="field__label">Стиль игры</span>
-      <div class="segmented">
+      <div v-jelly.soft class="segmented">
         <button
           v-for="option in PLAY_STYLES"
           :key="option.value"

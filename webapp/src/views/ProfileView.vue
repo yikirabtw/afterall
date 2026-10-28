@@ -1,16 +1,20 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onBeforeUnmount, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 
 import PhotoCarousel from '../components/PhotoCarousel.vue'
 import { formatAge } from '../format'
 import { LANGUAGES, LOOKING_FOR, PLAY_STYLE_LABELS } from '../labels'
-import { faceitLabel } from '../lobby'
+import BorderGlow from '../components/BorderGlow.vue'
+import FaceitLevel from '../components/FaceitLevel.vue'
+import { faceitColor, faceitLevel } from '../lobby'
 import { PHOTOS_MAX } from '../profile'
 import { gameById, session } from '../stores/session'
-import { haptic } from '../telegram'
+import { originOf, reveal } from '../reveal'
+import { openFrom } from '../router'
+import { setTheme, theme, type Theme } from '../stores/theme'
+import { haptic, setVerticalSwipes } from '../telegram'
 
-const router = useRouter()
 const me = computed(() => session.me!)
 const profile = computed(() => me.value.profile!)
 
@@ -34,7 +38,7 @@ const games = computed(() =>
         name: game.name,
         isMain: userGame.is_main,
         rank: game.ranks.find((rank) => rank.id === userGame.rank_id)?.name ?? null,
-        faceit: userGame.faceit_elo !== null ? faceitLabel(userGame.faceit_elo) : null,
+        faceit: userGame.faceit_elo,
         roles: game.roles.filter((role) => userGame.role_ids.includes(role.id)).map((role) => role.name),
       },
     ]
@@ -53,22 +57,106 @@ const languages = computed(() =>
   profile.value.languages.map((code) => LANGUAGES.find((lang) => lang.value === code)?.label ?? code).join(', '),
 )
 
+// --- Шапка раскрывается свайпом вверх: фото видно почти целиком, подпись снизу мельче. Свайп вниз — обратно.
+
+const SWIPE_MIN = 40 // px по вертикали, чтобы считалось свайпом, а не нажатием
+const PAGE_MAX_WIDTH = 592 // как у .page (560) плюс поля, на которые шапка выходит за край
+
+const expanded = ref(false)
+const canExpand = computed(() => me.value.photos.length > 0)
+
+// Высота по пропорциям главного фото — чтобы оно влезло целиком, но не выше 82% экрана
+const heroStyle = computed(() => {
+  if (!expanded.value) return undefined
+  const photo = me.value.photos[0]
+  const ratio = photo?.width ? photo.height / photo.width : 1.25
+  return { height: `min(calc(min(100vw, ${PAGE_MAX_WIDTH}px) * ${ratio.toFixed(3)}), 82vh)`, maxHeight: 'none' }
+})
+
+function setExpanded(value: boolean) {
+  if (expanded.value === value) return
+  expanded.value = value
+  haptic.select()
+  setVerticalSwipes(!value)
+}
+
+let startX = 0
+let startY = 0
+let swiped = false
+
+function onPointerDown(event: PointerEvent) {
+  startX = event.clientX
+  startY = event.clientY
+  swiped = false
+}
+
+function onPointerUp(event: PointerEvent) {
+  const dx = event.clientX - startX
+  const dy = event.clientY - startY
+  if (!canExpand.value || Math.abs(dy) < SWIPE_MIN || Math.abs(dy) < Math.abs(dx)) return
+  swiped = true
+  setExpanded(dy < 0)
+}
+
+// После свайпа браузер присылает ещё и «нажатие» — фото из-за него не перелистываем
+function onClickCapture(event: MouseEvent) {
+  if (!swiped) return
+  event.stopPropagation()
+  swiped = false
+}
+
+onBeforeUnmount(() => setVerticalSwipes(true))
+
+const THEMES: { value: Theme; label: string; icon: string }[] = [
+  { value: 'dark', label: 'Тёмная', icon: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z' },
+  {
+    value: 'light',
+    label: 'Светлая',
+    icon: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
+  },
+]
+
+// Новая тема разливается кругом от нажатой кнопки
+function chooseTheme(value: Theme, event: MouseEvent) {
+  if (theme.value === value) return
+  haptic.select()
+  void reveal(originOf(event.currentTarget as Element), () => setTheme(value))
+}
+
+// Карандаш: экран редактирования «расплывается» из него, «Назад» сворачивает обратно
 function edit(event: Event) {
   event.stopPropagation() // иначе нажатие ещё и перелистнёт фото
   haptic.tap()
-  void router.push('/profile/edit')
+  openFrom(event.currentTarget as Element, '/profile/edit')
 }
 </script>
 
 <template>
   <main class="page profile">
-    <PhotoCarousel class="hero" :photos="me.photos" :name="profile.display_name">
+    <PhotoCarousel
+      class="hero"
+      :class="{ 'hero--swipe': canExpand, 'hero--expanded': expanded }"
+      :style="heroStyle"
+      :photos="me.photos"
+      :name="profile.display_name"
+      @pointerdown="onPointerDown"
+      @pointerup="onPointerUp"
+      @click.capture="onClickCapture"
+    >
       <h1 class="hero__name">{{ profile.display_name }}</h1>
       <p class="hero__meta">
         <span v-if="age !== null">{{ formatAge(age) }}</span>
         <span v-if="profile.city">{{ profile.city }}</span>
         <span v-if="me.username">@{{ me.username }}</span>
       </p>
+      <!-- Ручка: подсказывает свайп и сама раскрывает/сворачивает по нажатию -->
+      <button
+        v-if="canExpand"
+        class="hero__handle"
+        type="button"
+        :aria-label="expanded ? 'Свернуть фото' : 'Развернуть фото'"
+        @click.stop="setExpanded(!expanded)"
+      />
     </PhotoCarousel>
     <button class="edit" type="button" aria-label="Редактировать профиль" @click="edit">
       <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
@@ -101,11 +189,11 @@ function edit(event: Event) {
       <span class="badge">{{ profile.has_mic ? 'С микрофоном' : 'Без микрофона' }}</span>
     </div>
 
-    <p v-if="profile.bio" class="card card--lit bio">{{ profile.bio }}</p>
+    <BorderGlow v-if="profile.bio" as="p" class="card card--lit bio">{{ profile.bio }}</BorderGlow>
 
     <!-- Разделы нажимаются целиком: «Игры» — редактор игр, «Ещё» — анкета -->
     <h2 class="section-title">Игры</h2>
-    <RouterLink to="/profile/games" class="card list tappable" @click="haptic.tap()">
+    <BorderGlow :as="RouterLink" to="/profile/games" class="card list tappable" @click="haptic.tap()">
       <div v-for="game in games" :key="game.id" class="list__row">
         <div>
           <b>{{ game.name }}</b>
@@ -114,8 +202,11 @@ function edit(event: Event) {
         </div>
         <span class="row-end">
           <span class="hint row-value">
-            {{ game.rank ?? (game.faceit ? '' : 'без ранга') }}
-            <span v-if="game.faceit" class="faceit">{{ game.faceit }}</span>
+            {{ game.rank ?? (game.faceit !== null ? '' : 'без ранга') }}
+            <span v-if="game.faceit !== null" class="faceit" :style="{ color: faceitColor(faceitLevel(game.faceit)) }">
+              <FaceitLevel :elo="game.faceit" :size="22" />
+              FACEIT {{ game.faceit }}
+            </span>
           </span>
           <span class="chevron" aria-hidden="true">›</span>
         </span>
@@ -124,10 +215,36 @@ function edit(event: Event) {
         <span class="hint">Игры не выбраны</span>
         <span class="chevron" aria-hidden="true">›</span>
       </div>
-    </RouterLink>
+    </BorderGlow>
 
     <h2 class="section-title">Ещё</h2>
-    <div class="card list">
+    <BorderGlow class="card list">
+      <div class="list__row">
+        <span>Тема</span>
+        <span v-jelly="{ room: true }" class="theme-switch" role="radiogroup" aria-label="Тема">
+          <button
+            v-for="option in THEMES"
+            :key="option.value"
+            type="button"
+            role="radio"
+            :aria-checked="theme === option.value"
+            :aria-label="option.label"
+            @click="chooseTheme(option.value, $event)"
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <path
+                :d="option.icon"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            {{ option.label }}
+          </button>
+        </span>
+      </div>
       <RouterLink to="/profile/edit" class="list__row tappable" @click="haptic.tap()">
         <span>Языки</span>
         <span class="row-end"><span class="hint">{{ languages }}</span><span class="chevron" aria-hidden="true">›</span></span>
@@ -143,7 +260,7 @@ function edit(event: Event) {
         <span>Кого ищу, стиль, микрофон</span>
         <span class="row-end"><span class="hint">{{ lookingFor }}</span><span class="chevron" aria-hidden="true">›</span></span>
       </RouterLink>
-    </div>
+    </BorderGlow>
     <p class="hint">Discord и ник в Telegram видны только после взаимного лайка или в общей пати.</p>
   </main>
 </template>
@@ -162,6 +279,12 @@ function edit(event: Event) {
   margin: 0 -16px;
   border-bottom: 1px solid var(--line);
   border-radius: 0 0 24px 24px;
+  transition: height 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Вертикальный свайп по шапке — наш, страницу с неё не прокручиваем */
+.hero--swipe {
+  touch-action: none;
 }
 
 .hero__name {
@@ -171,6 +294,7 @@ function edit(event: Event) {
   font-weight: 400;
   line-height: 1.1;
   overflow-wrap: anywhere;
+  transition: font-size 0.35s ease;
 }
 
 .hero__meta {
@@ -180,6 +304,51 @@ function edit(event: Event) {
   margin: 6px 0 0;
   font-size: 15px;
   opacity: 0.85;
+  transition: font-size 0.35s ease;
+}
+
+/* Раскрыто: фото главнее, подпись скромнее */
+.hero--expanded .hero__name {
+  font-size: 22px;
+}
+
+.hero--expanded .hero__meta {
+  margin-top: 3px;
+  font-size: 13px;
+}
+
+/* Ручка внизу шапки — светящаяся черта, область нажатия больше её самой */
+.hero__handle {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 64px;
+  height: 18px;
+  margin-left: -32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.hero__handle::after {
+  content: '';
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 7px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 0.7);
+  box-shadow: 0 0 8px rgb(255 255 255 / 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero,
+  .hero__name,
+  .hero__meta {
+    transition: none;
+  }
 }
 
 .edit {
@@ -241,7 +410,7 @@ function edit(event: Event) {
   font-family: var(--font-pixel);
   font-size: 30px;
   line-height: 1;
-  text-shadow: 0 0 6px rgb(255 255 255 / 0.4);
+  text-shadow: 0 0 6px rgb(var(--glow-rgb) / 0.4);
 }
 
 .stats dt {
@@ -308,9 +477,44 @@ a.list__row.tappable {
   align-items: flex-end;
 }
 
+/* Цвет текста задаётся уровнем FACEIT */
 .faceit {
-  color: var(--warn);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
   font-weight: 700;
+}
+
+/* Тема: две «пилюли» с луной и солнцем, выбранная раздувается желе (v-jelly) */
+.theme-switch {
+  display: inline-flex;
+  gap: 8px;
+  margin-right: -12px; /* отступы под раздувание — не сдвигаем ряд от края */
+}
+
+.theme-switch button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  background: var(--raised);
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.theme-switch button[aria-checked='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: 0 0 12px rgb(var(--glow-rgb) / 0.25);
 }
 
 .chevron {

@@ -54,6 +54,8 @@ async def test_upload_applies_exif_orientation(client):
     image = Image.open(io.BytesIO((await client.get(photo["url"])).content))
     width, height = image.size
     assert height > width
+    # Клиент получает размеры уже повёрнутого снимка — по ним шапка профиля подстраивает высоту
+    assert (photo["width"], photo["height"]) == (width, height)
 
 
 @pytest.mark.parametrize(

@@ -84,10 +84,10 @@ function onTap(event: MouseEvent) {
   inset: 0;
   display: grid;
   place-items: center;
-  background-color: var(--g-0);
+  background-color: #000;
   background-size: cover;
   background-position: 60% 40%;
-  color: var(--text);
+  color: #fff;
   font-family: var(--font-pixel);
   font-size: 120px;
   line-height: 1;

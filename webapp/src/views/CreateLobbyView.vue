@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { api } from '../api/client'
 import { errorMessage } from '../api/errors'
 import type { LobbyKind, PlayStyle } from '../api/types'
+import GameSelect from '../components/GameSelect.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { LANGUAGES, PLAY_STYLES } from '../labels'
 import { gameById, session } from '../stores/session'
@@ -137,29 +138,18 @@ async function submit() {
 </script>
 
 <template>
-  <main class="page">
+  <main class="page rise-in">
     <PageHeader title="Новая пати" />
 
     <div class="stack">
-      <div class="segmented">
+      <div v-jelly.soft class="segmented">
         <button type="button" :aria-pressed="kind === 'game'" @click="setKind('game')">В игру</button>
         <button type="button" :aria-pressed="kind === 'hangout'" @click="setKind('hangout')">Просто посидеть</button>
       </div>
 
       <div v-if="kind === 'game'" class="field">
         <span class="field__label">Игра</span>
-        <div class="chips chips--scroll">
-          <button
-            v-for="option in gameOptions"
-            :key="option.id"
-            type="button"
-            class="chip"
-            :class="{ 'chip--on': gameId === option.id }"
-            @click="(gameId = option.id), haptic.select()"
-          >
-            {{ option.name }}
-          </button>
-        </div>
+        <GameSelect v-model="gameId" :games="gameOptions" placeholder="Выбрать игру" />
       </div>
 
       <label class="field">
@@ -191,7 +181,7 @@ async function submit() {
 
       <div class="field">
         <span class="field__label">Когда</span>
-        <div class="segmented">
+        <div v-jelly.soft class="segmented">
           <button type="button" :aria-pressed="when === 'now'" @click="(when = 'now'), haptic.select()">Сейчас</button>
           <button type="button" :aria-pressed="when === 'today'" @click="(when = 'today'), haptic.select()">Сегодня</button>
           <button type="button" :aria-pressed="when === 'tomorrow'" @click="(when = 'tomorrow'), haptic.select()">
@@ -229,7 +219,7 @@ async function submit() {
 
       <div class="field">
         <span class="field__label">Стиль</span>
-        <div class="segmented">
+        <div v-jelly.soft class="segmented">
           <button type="button" :aria-pressed="playStyle === null" @click="(playStyle = null), haptic.select()">Любой</button>
           <button
             v-for="option in PLAY_STYLES"

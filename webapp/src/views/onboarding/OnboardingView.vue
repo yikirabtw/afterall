@@ -112,7 +112,7 @@ async function finish() {
 
 .progress__bar span.active {
   background: var(--accent);
-  box-shadow: 0 0 8px 1px rgb(255 255 255 / 0.7);
+  box-shadow: 0 0 8px 1px rgb(var(--glow-rgb) / 0.7);
 }
 
 .progress__label {

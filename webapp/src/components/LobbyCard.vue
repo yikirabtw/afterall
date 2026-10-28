@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 
 import type { Lobby } from '../api/types'
+import reflection from '../assets/reflection.jpg'
 import { formatStart } from '../format'
 import { LOBBY_STATUS_LABELS, MEMBER_STATUS_LABELS, PLAY_STYLE_LABELS } from '../labels'
 import { gameColor, gameTitle, rankRangeLabel } from '../lobby'
@@ -22,11 +23,18 @@ const statusBadge = computed(() => {
 
 <template>
   <RouterLink
+    v-reflect
     :to="`/lobby/${lobby.id}`"
     class="lobby card"
     :style="{ '--game': gameColor(lobby.game_id) }"
     @click="haptic.tap()"
   >
+    <!-- Металл: размытое отражение «полосы света», полоса блеска и блик под пальцем (v-reflect) -->
+    <span class="lobby__fx" aria-hidden="true">
+      <span class="lobby__reflection" :style="{ backgroundImage: `url(${reflection})` }" />
+      <span class="lobby__sheen" />
+      <span class="lobby__glare" />
+    </span>
     <header class="lobby__top">
       <span class="lobby__game">{{ gameTitle(lobby) }}</span>
       <span class="lobby__when">{{ formatStart(lobby.starts_at) }}</span>
@@ -67,16 +75,93 @@ const statusBadge = computed(() => {
   padding-left: 20px;
   color: inherit;
   text-decoration: none;
-  transition: transform 0.08s ease, border-color 0.15s ease;
+  transform: perspective(800px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) scale(var(--press, 1));
+  transition:
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.15s ease;
+}
+
+/* Пока палец или курсор на карточке — наклон без запаздывания */
+.lobby.is-tilting {
+  transition:
+    transform 0.1s linear,
+    border-color 0.15s ease;
 }
 
 .lobby:active {
-  transform: scale(0.99);
+  --press: 0.99;
   border-color: var(--line-strong);
 }
 
-/* Светящаяся полоска цвета игры слева — как в шпаргалке по цветам */
+/* Содержимое — над слоями металла */
+.lobby > :not(.lobby__fx) {
+  position: relative;
+  z-index: 1;
+}
+
+.lobby__fx,
+.lobby__fx > * {
+  position: absolute;
+  pointer-events: none;
+}
+
+.lobby__fx {
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+/* Отражение едет при прокрутке и чуть против наклона */
+.lobby__reflection {
+  inset: -45% -20%;
+  background-position: center;
+  background-size: cover;
+  opacity: 0.17;
+  mix-blend-mode: screen;
+  transform: translate3d(
+      calc(var(--tilt-x, 0) * 1px),
+      calc((var(--ref-scroll, 0) * var(--ref-travel, 90) + var(--tilt-y, 0)) * 1px),
+      0
+    )
+    rotate(-8deg);
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lobby.is-tilting .lobby__reflection {
+  transition: transform 0.1s linear;
+}
+
+/* Полоса блеска, как на шлифованном металле, — проходит по карточке при прокрутке */
+.lobby__sheen {
+  inset: 0;
+  background: linear-gradient(105deg, transparent 38%, rgb(var(--glow-rgb) / 0.07) 50%, transparent 62%);
+  transform: translateX(calc(var(--ref-scroll, 0) * 160%));
+}
+
+.lobby__glare {
+  inset: 0;
+  background: radial-gradient(circle at var(--gx, 50%) var(--gy, 50%), rgb(var(--glow-rgb) / 0.3), transparent 55%);
+  opacity: var(--glare, 0);
+  transition: opacity 0.35s ease;
+}
+
+/* В светлой теме свет «отражается» тёмным: та же картинка, инвертированная */
+:global([data-theme='light']) .lobby__reflection {
+  filter: invert(1);
+  mix-blend-mode: multiply;
+  opacity: 0.08;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lobby,
+  .lobby__reflection {
+    transition: none;
+  }
+}
+
+/* Светящаяся полоска цвета игры слева — как в шпаргалке по цветам; над слоями металла */
 .lobby::before {
+  z-index: 2;
   content: '';
   position: absolute;
   top: 14px;
@@ -182,7 +267,7 @@ const statusBadge = computed(() => {
 .lobby__cells i.taken {
   border-color: var(--accent);
   background: var(--accent);
-  box-shadow: 0 0 6px rgb(255 255 255 / 0.7);
+  box-shadow: 0 0 6px rgb(var(--glow-rgb) / 0.7);
 }
 
 /* Осталось одно место — подсвечиваем жёлтым, чтобы цепляло взгляд */

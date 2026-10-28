@@ -406,7 +406,7 @@ async function copyDiscord(tag: string) {
 .slots__cells i.taken {
   border-color: var(--accent);
   background: var(--accent);
-  box-shadow: 0 0 6px rgb(255 255 255 / 0.7);
+  box-shadow: 0 0 6px rgb(var(--glow-rgb) / 0.7);
 }
 
 /* Плашка статуса: слева светящаяся полоска цвета состояния */
@@ -479,7 +479,7 @@ async function copyDiscord(tag: string) {
   color: var(--text);
   font-family: var(--font-pixel);
   font-size: 20px;
-  text-shadow: 0 0 8px rgb(255 255 255 / 0.6);
+  text-shadow: 0 0 8px rgb(var(--glow-rgb) / 0.6);
 }
 
 .member__body {

@@ -13,6 +13,8 @@ interface TelegramWebApp {
   setHeaderColor(color: string): void
   setBackgroundColor(color: string): void
   setBottomBarColor(color: string): void
+  disableVerticalSwipes(): void
+  enableVerticalSwipes(): void
   openTelegramLink(url: string): void
   openLink(url: string): void
   showConfirm(message: string, callback: (confirmed: boolean) => void): void
@@ -45,7 +47,6 @@ function supports(version: string): boolean {
 }
 
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost'])
-const PAGE_COLOR = '#000000' // как --page в styles.css
 
 /**
  * initData для заголовка Authorization. Вне Telegram в режиме разработки — тестовая подпись из
@@ -64,11 +65,24 @@ export function setupTelegram(): void {
   if (!insideTelegram) return
   webApp!.ready()
   webApp!.expand()
-  // Приложение всегда чёрное — красим шапку и фон Telegram в тот же цвет
-  if (supports('6.1')) webApp!.setBackgroundColor(PAGE_COLOR)
-  if (supports('6.9')) webApp!.setHeaderColor(PAGE_COLOR)
+}
+
+/** Шапка, фон и нижняя полоса Telegram — в цвет фона приложения (меняется вместе с темой) */
+export function paintTelegram(color: string): void {
+  if (supports('6.1')) webApp!.setBackgroundColor(color)
+  if (supports('6.9')) webApp!.setHeaderColor(color)
   else if (supports('6.1')) webApp!.setHeaderColor('bg_color')
-  if (supports('7.10')) webApp!.setBottomBarColor(PAGE_COLOR)
+  if (supports('7.10')) webApp!.setBottomBarColor(color)
+}
+
+/**
+ * Системный жест «свайп вниз — свернуть приложение». Выключаем, пока свой вертикальный свайп
+ * что-то делает (раскрытое фото профиля), иначе Telegram перехватит его и закроет приложение.
+ */
+export function setVerticalSwipes(enabled: boolean): void {
+  if (!supports('7.7')) return
+  if (enabled) webApp!.enableVerticalSwipes()
+  else webApp!.disableVerticalSwipes()
 }
 
 export const haptic = {

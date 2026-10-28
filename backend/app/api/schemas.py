@@ -231,6 +231,8 @@ class AvailabilitySlotOut(Schema):
 class PhotoOut(Schema):
     id: int
     url: str = ""  # подписанная ссылка; без неё <img> фото не покажет
+    width: int  # размеры после обработки — клиенту, чтобы показать фото без обрезки
+    height: int
 
     @model_validator(mode="after")
     def _signed_url(self, info: ValidationInfo) -> Self:

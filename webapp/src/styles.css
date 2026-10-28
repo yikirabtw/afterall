@@ -1,14 +1,17 @@
 /*
-  Дизайн-токены. Визуал — по референсам из папки «визуал»: чёрный монохром (шкала Dark),
-  белое свечение и свет «сверху», цвет — только точечно, в светящихся акцентах.
-  Приложение всегда тёмное, тему Telegram не повторяем: свечение на светлом фоне не работает.
+  Дизайн-токены. Визуал — по референсам из папки «визуал»: монохром (шкалы Dark и Light),
+  свечение и свет «сверху», цвет — только точечно, в светящихся акцентах.
+  Тема — своя, не из Telegram: тёмная по умолчанию, светлая — по выбору в профиле (stores/theme.ts).
+  В светлой теме «свечение» становится мягкой серой тенью.
+  .theme-dark возвращает тёмную тему внутри светлой — для заставки и экрана мэтча, они задуманы на чёрном.
 */
 @import '@fontsource/tiny5/400.css';
 @import '@fontsource/tektur/500.css';
 @import '@fontsource/russo-one/400.css';
 
-:root {
-  /* Шкала Dark: 0 → 950 */
+/* --- Шкала и свет: тёмная тема --- */
+:root,
+.theme-dark {
   --g-0: #000000;
   --g-50: #0a0a0a;
   --g-100: #171717;
@@ -19,8 +22,52 @@
   --g-600: #a3a3a3;
   --g-700: #d4d4d4;
   --g-800: #e5e5e5;
+  --g-900: #f5f5f5;
   --g-950: #fafafa;
 
+  --ok: #3ddc6a;
+  --warn: #ffc93c;
+  --danger: #ff4b3e;
+
+  --glow-rgb: 255 255 255; /* цвет свечения — rgb(var(--glow-rgb) / прозрачность) */
+  --lamp: #ffffff; /* светящиеся полосы «лампы» */
+  --faceit-1: #eeeeee; /* 1 уровень FACEIT — белый, на светлом не виден */
+  --shadow-float: 0 10px 30px rgb(0 0 0 / 0.6);
+
+  color-scheme: dark;
+}
+
+/* --- Шкала и свет: светлая тема --- */
+:root[data-theme='light'] {
+  --g-0: #ffffff;
+  --g-50: #fafafa;
+  --g-100: #f5f5f5;
+  --g-200: #e5e5e5;
+  --g-300: #d4d4d4;
+  --g-400: #a3a3a3;
+  --g-500: #737373;
+  --g-600: #525252;
+  --g-700: #404040;
+  --g-800: #262626;
+  --g-900: #171717;
+  --g-950: #0a0a0a;
+
+  /* Статусы темнее — иначе на белом не читаются */
+  --ok: #16a34a;
+  --warn: #d97706;
+  --danger: #dc2626;
+
+  --glow-rgb: 115 115 115;
+  --lamp: #0a0a0a;
+  --faceit-1: #8a8a8a;
+  --shadow-float: 0 10px 30px rgb(0 0 0 / 0.1);
+
+  color-scheme: light;
+}
+
+/* --- Смысловые токены: объявлены везде, где меняется шкала, чтобы пересчитаться от неё --- */
+:root,
+.theme-dark {
   --page: var(--g-0);
   --card: var(--g-50);
   --raised: var(--g-100);
@@ -30,25 +77,34 @@
   --text-2: var(--g-600);
   --hint: var(--g-500);
 
-  /* Главный акцент — белый, «хромовый» */
+  /* Главный акцент — цвет текста: белый «хром» в тёмной теме, чёрный в светлой */
   --accent: var(--g-950);
   --accent-ink: var(--g-0);
 
-  /* Цвет — частично: статусы и игры, всегда со свечением */
-  --ok: #3ddc6a;
-  --warn: #ffc93c;
-  --danger: #ff4b3e;
-  --violet: #7b5cff;
   --ok-soft: color-mix(in srgb, var(--ok) 14%, transparent);
   --warn-soft: color-mix(in srgb, var(--warn) 14%, transparent);
   --danger-soft: color-mix(in srgb, var(--danger) 14%, transparent);
 
   /* Свечение: три ступени как в референсе (blur 8 / 32 / 128) */
-  --glow-1: 0 0 8px rgb(255 255 255 / 0.55);
-  --glow-2: 0 0 32px 4px rgb(255 255 255 / 0.22);
-  --glow-3: 0 0 128px 32px rgb(255 255 255 / 0.12);
+  --glow-1: 0 0 8px rgb(var(--glow-rgb) / 0.55);
+  --glow-2: 0 0 32px 4px rgb(var(--glow-rgb) / 0.22);
+  --glow-3: 0 0 128px 32px rgb(var(--glow-rgb) / 0.12);
   /* Блик сверху у карточек — «свет падает сверху» */
-  --edge-light: inset 0 1px 0 rgb(255 255 255 / 0.07);
+  --edge-light: inset 0 1px 0 rgb(var(--glow-rgb) / 0.07);
+}
+
+/* В светлой теме карточки белые на сером фоне, а не наоборот */
+:root[data-theme='light'] {
+  --page: var(--g-100);
+  --card: var(--g-0);
+}
+
+.theme-dark {
+  color: var(--text);
+}
+
+:root {
+  --violet: #7b5cff;
 
   --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   /* Tektur — подписи и кнопки капсом; у его строчной «д» латинская форма, поэтому заголовки — Russo One */
@@ -61,8 +117,6 @@
   --radius-btn: 6px;
   --gap: 12px;
   --safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--tg-safe-area-inset-bottom, 0px));
-
-  color-scheme: dark;
 }
 
 * {
@@ -79,6 +133,8 @@ body {
   line-height: 1.4;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
+  /* Сдвиги в анимациях не дают горизонтальной прокрутки (clip, а не hidden — не ломает sticky) */
+  overflow-x: clip;
 }
 
 button,
@@ -112,7 +168,7 @@ select {
   line-height: 1;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  text-shadow: 0 0 14px rgb(255 255 255 / 0.22);
+  text-shadow: 0 0 14px rgb(var(--glow-rgb) / 0.22);
 }
 
 /* Заголовок экрана с кнопкой справа */
@@ -184,8 +240,8 @@ a.btn {
   left: 14%;
   right: 14%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, #fff 30%, #fff 70%, transparent);
-  box-shadow: 0 0 12px 1px rgb(255 255 255 / 0.55), 0 0 40px 6px rgb(255 255 255 / 0.12);
+  background: linear-gradient(90deg, transparent, var(--lamp) 30%, var(--lamp) 70%, transparent);
+  box-shadow: 0 0 12px 1px rgb(var(--glow-rgb) / 0.55), 0 0 40px 6px rgb(var(--glow-rgb) / 0.12);
   pointer-events: none;
 }
 
@@ -246,7 +302,7 @@ a.btn {
 .btn-primary {
   background: var(--accent);
   color: var(--accent-ink);
-  box-shadow: 0 0 22px rgb(255 255 255 / 0.18);
+  box-shadow: 0 0 22px rgb(var(--glow-rgb) / 0.18);
 }
 
 .btn-primary:active {
@@ -313,16 +369,12 @@ a.btn {
 
 .input:focus {
   border-color: var(--g-600);
-  box-shadow: 0 0 0 3px rgb(255 255 255 / 0.06), 0 0 18px rgb(255 255 255 / 0.08);
+  box-shadow: 0 0 0 3px rgb(var(--glow-rgb) / 0.06), 0 0 18px rgb(var(--glow-rgb) / 0.08);
 }
 
 textarea.input {
   min-height: 88px;
   resize: vertical;
-}
-
-input[type='date'].input {
-  color-scheme: dark;
 }
 
 /* --- Чипы и переключатели --- */
@@ -358,7 +410,7 @@ input[type='date'].input {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-ink);
-  box-shadow: 0 0 14px rgb(255 255 255 / 0.3);
+  box-shadow: 0 0 14px rgb(var(--glow-rgb) / 0.3);
 }
 
 .segmented {
@@ -389,7 +441,7 @@ input[type='date'].input {
 .segmented button[aria-pressed='true'] {
   background: var(--accent);
   color: var(--accent-ink);
-  box-shadow: 0 0 16px rgb(255 255 255 / 0.25);
+  box-shadow: 0 0 16px rgb(var(--glow-rgb) / 0.25);
 }
 
 .toggle-row {
@@ -400,6 +452,12 @@ input[type='date'].input {
   cursor: pointer;
 }
 
+/*
+  Тумблер с «желе» по мотивам SquishSwitch из React Bits: кружок при переключении сначала
+  растягивается в сторону движения, потом догоняет себя; при нажатии сплющивается.
+  Анимация включается после первого переключения (класс switch--live, src/squish.ts) —
+  иначе она проигрывалась бы у всех тумблеров при открытии экрана.
+*/
 .switch {
   appearance: none;
   flex: none;
@@ -411,7 +469,11 @@ input[type='date'].input {
   background: var(--raised);
   position: relative;
   cursor: pointer;
-  transition: background 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    background-color 0.32s ease,
+    border-color 0.32s ease,
+    box-shadow 0.32s ease,
+    transform 0.2s ease;
 }
 
 .switch::after {
@@ -421,20 +483,167 @@ input[type='date'].input {
   left: 3px;
   width: 20px;
   height: 20px;
-  border-radius: 50%;
+  border-radius: 10px;
   background: var(--g-500);
-  transition: transform 0.15s ease, background 0.15s ease;
+  transition:
+    transform 0.2s ease,
+    width 0.15s ease,
+    background-color 0.32s ease;
 }
 
 .switch:checked {
   background: var(--accent);
   border-color: var(--accent);
-  box-shadow: 0 0 14px rgb(255 255 255 / 0.3);
+  box-shadow: 0 0 14px rgb(var(--glow-rgb) / 0.3);
 }
 
 .switch:checked::after {
   background: var(--g-0);
   transform: translateX(20px);
+}
+
+/* Нажали — кружок сплющился к центру хода */
+.switch:active::after {
+  width: 25px;
+}
+
+.switch:checked:active::after {
+  transform: translateX(15px);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .switch:hover {
+    transform: scale(1.035);
+  }
+}
+
+.switch--live::after {
+  animation: squish-off 0.34s cubic-bezier(0.3, 0.7, 0.3, 1);
+}
+
+.switch--live:checked::after {
+  animation: squish-on 0.34s cubic-bezier(0.3, 0.7, 0.3, 1);
+}
+
+@keyframes squish-on {
+  0% {
+    width: 20px;
+    transform: translateX(0);
+  }
+
+  45% {
+    width: 31px;
+    transform: translateX(0);
+  }
+
+  100% {
+    width: 20px;
+    transform: translateX(20px);
+  }
+}
+
+@keyframes squish-off {
+  0% {
+    width: 20px;
+    transform: translateX(20px);
+  }
+
+  45% {
+    width: 31px;
+    transform: translateX(9px);
+  }
+
+  100% {
+    width: 20px;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .switch--live::after,
+  .switch--live:checked::after {
+    animation: none;
+  }
+}
+
+/* --- Нижняя шторка --- */
+
+/*
+  Появление (<Transition name="sheet" :duration="SHEET_MS">): фон темнеет, шторка поднимается снизу
+  и проявляется из размытия, строки внутри (.rise-in) выезжают по очереди. Закрытие — быстрее, вниз.
+*/
+.sheet-enter-active,
+.sheet-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.sheet-enter-from,
+.sheet-leave-to {
+  opacity: 0;
+}
+
+.sheet-enter-active .sheet {
+  transition:
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.4s ease-out;
+}
+
+.sheet-leave-active .sheet {
+  transition:
+    transform 0.26s cubic-bezier(0.55, 0, 0.75, 0.25),
+    filter 0.26s ease-in;
+}
+
+.sheet-enter-from .sheet,
+.sheet-leave-to .sheet {
+  transform: translateY(70%);
+  filter: blur(8px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-enter-active .sheet,
+  .sheet-leave-active .sheet {
+    transition: none;
+  }
+}
+
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  background: rgb(0 0 0 / 0.7);
+}
+
+.sheet {
+  width: 100%;
+  max-width: 560px;
+  max-height: 85vh;
+  margin: 0 auto;
+  padding: 8px 16px calc(16px + var(--safe-bottom));
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: 22px 22px 0 0;
+  background: var(--g-50);
+  box-shadow: 0 -1px 0 rgb(var(--glow-rgb) / 0.06), var(--shadow-float);
+}
+
+.sheet__handle {
+  width: 40px;
+  height: 4px;
+  margin: 0 auto 12px;
+  border-radius: 2px;
+  background: var(--g-400);
+}
+
+.sheet__title {
+  margin: 0 0 18px;
+  font-family: var(--font-pixel);
+  font-size: 24px;
+  font-weight: 400;
+  text-transform: uppercase;
 }
 
 /* --- Бейджи --- */
@@ -455,7 +664,7 @@ input[type='date'].input {
 .badge--accent {
   border-color: var(--g-700);
   color: var(--text);
-  box-shadow: 0 0 10px rgb(255 255 255 / 0.15);
+  box-shadow: 0 0 10px rgb(var(--glow-rgb) / 0.15);
 }
 
 .badge--ok {
@@ -488,8 +697,8 @@ input[type='date'].input {
   right: 18%;
   height: 2px;
   border-radius: 1px;
-  background: #fff;
-  box-shadow: 0 0 10px 1px rgb(255 255 255 / 0.7), 0 6px 60px 10px rgb(255 255 255 / 0.1);
+  background: var(--lamp);
+  box-shadow: 0 0 10px 1px rgb(var(--glow-rgb) / 0.7), 0 6px 60px 10px rgb(var(--glow-rgb) / 0.1);
 }
 
 .empty__title {
@@ -516,7 +725,7 @@ input[type='date'].input {
   border: 2px solid var(--line-strong);
   border-top-color: var(--accent);
   border-radius: 50%;
-  filter: drop-shadow(0 0 4px rgb(255 255 255 / 0.6));
+  filter: drop-shadow(0 0 4px rgb(var(--glow-rgb) / 0.6));
   animation: spin 0.9s linear infinite;
 }
 
@@ -575,5 +784,130 @@ input[type='date'].input {
   .switch,
   .switch::after {
     transition: none;
+  }
+}
+
+/* --- Расплытие (reveal.ts): смена вида кругом из точки нажатия --- */
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/* Открытие: новый вид растёт кругом и проявляется из размытия */
+:root[data-reveal='open-circle']::view-transition-new(root) {
+  animation: reveal-grow 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Закрытие: старый вид сворачивается в точку, под ним — прежний экран */
+:root[data-reveal='close-circle']::view-transition-old(root) {
+  z-index: 1;
+  animation: reveal-shrink 0.45s cubic-bezier(0.55, 0, 0.75, 0.25) both;
+}
+
+/* «Создать»: кнопка растягивается в экран — clip-path от её прямоугольника до полного экрана */
+:root[data-reveal='open-morph']::view-transition-new(root) {
+  animation: reveal-morph-grow 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+:root[data-reveal='close-morph']::view-transition-old(root) {
+  z-index: 1;
+  animation: reveal-morph-shrink 0.4s cubic-bezier(0.55, 0, 0.75, 0.25) both;
+}
+
+@keyframes reveal-morph-grow {
+  from {
+    clip-path: inset(
+      var(--reveal-top) var(--reveal-right) var(--reveal-bottom) var(--reveal-left) round var(--reveal-radius)
+    );
+    filter: blur(8px);
+  }
+
+  to {
+    clip-path: inset(0 0 0 0 round 0);
+    filter: blur(0);
+  }
+}
+
+@keyframes reveal-morph-shrink {
+  from {
+    clip-path: inset(0 0 0 0 round 0);
+    filter: blur(0);
+  }
+
+  to {
+    clip-path: inset(
+      var(--reveal-top) var(--reveal-right) var(--reveal-bottom) var(--reveal-left) round var(--reveal-radius)
+    );
+    filter: blur(8px);
+  }
+}
+
+@keyframes reveal-grow {
+  from {
+    clip-path: circle(0 at var(--reveal-x) var(--reveal-y));
+    filter: blur(14px);
+  }
+
+  60% {
+    filter: blur(0);
+  }
+
+  to {
+    clip-path: circle(var(--reveal-r) at var(--reveal-x) var(--reveal-y));
+    filter: blur(0);
+  }
+}
+
+@keyframes reveal-shrink {
+  from {
+    clip-path: circle(var(--reveal-r) at var(--reveal-x) var(--reveal-y));
+    filter: blur(0);
+  }
+
+  to {
+    clip-path: circle(0 at var(--reveal-x) var(--reveal-y));
+    filter: blur(10px);
+  }
+}
+
+/* --- Подъём блоков по очереди (как «rise» у CardNav): класс на контейнере экрана --- */
+
+.rise-in > * {
+  animation: rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--rise-i, 0) * 60ms + 140ms);
+}
+
+.rise-in > :nth-child(2) {
+  --rise-i: 1;
+}
+
+.rise-in > :nth-child(3) {
+  --rise-i: 2;
+}
+
+.rise-in > :nth-child(4) {
+  --rise-i: 3;
+}
+
+.rise-in > :nth-child(5) {
+  --rise-i: 4;
+}
+
+.rise-in > :nth-child(n + 6) {
+  --rise-i: 5;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise-in > * {
+    animation: none;
   }
 }

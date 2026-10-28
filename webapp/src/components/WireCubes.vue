@@ -64,9 +64,9 @@ const cubes = CUBES.map((cube) => ({ ...cube, paths: cubePaths(cube) }))
   <svg class="cubes" viewBox="0 0 160 140" aria-hidden="true">
     <g v-for="(cube, index) in cubes" :key="index" class="cubes__cube" :style="{ animationDelay: `${index * -0.7}s` }">
       <template v-if="cube.solid">
-        <path :d="cube.paths.faces.top" fill="#f5f5f5" />
-        <path :d="cube.paths.faces.leftSide" fill="#a3a3a3" />
-        <path :d="cube.paths.faces.rightSide" fill="#525252" />
+        <path :d="cube.paths.faces.top" class="cubes__face--top" />
+        <path :d="cube.paths.faces.leftSide" class="cubes__face--left" />
+        <path :d="cube.paths.faces.rightSide" class="cubes__face--right" />
       </template>
       <template v-else>
         <path :d="cube.paths.hidden" class="cubes__hidden" />
@@ -90,13 +90,13 @@ const cubes = CUBES.map((cube) => ({ ...cube, paths: cubePaths(cube) }))
 .cubes {
   display: block;
   overflow: visible;
-  filter: drop-shadow(0 0 6px rgb(255 255 255 / 0.25));
+  filter: drop-shadow(0 0 6px rgb(var(--glow-rgb) / 0.25));
 }
 
 .cubes__edge,
 .cubes__hidden {
   fill: none;
-  stroke: #fafafa;
+  stroke: var(--g-950);
   stroke-width: 1.4;
   stroke-linejoin: round;
 }
@@ -105,12 +105,24 @@ const cubes = CUBES.map((cube) => ({ ...cube, paths: cubePaths(cube) }))
   stroke-opacity: 0.25;
 }
 
+.cubes__face--top {
+  fill: var(--g-900);
+}
+
+.cubes__face--left {
+  fill: var(--g-600);
+}
+
+.cubes__face--right {
+  fill: var(--g-400);
+}
+
 .cubes__cube {
   animation: float 4s ease-in-out infinite alternate;
 }
 
 .cubes__dust {
-  fill: #d4d4d4;
+  fill: var(--g-700);
   animation: twinkle 2.4s ease-in-out infinite alternate;
 }
 

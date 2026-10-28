@@ -4,6 +4,8 @@ import { onMounted, ref } from 'vue'
 import { api } from '../api/client'
 import { errorMessage } from '../api/errors'
 import type { Lobby } from '../api/types'
+import { openFrom } from '../router'
+import { haptic } from '../telegram'
 import LobbyCard from './LobbyCard.vue'
 import WireCubes from './WireCubes.vue'
 
@@ -24,6 +26,12 @@ async function load() {
   }
 }
 
+// «Создать пати»: экран новой пати вырастает из нажатой кнопки
+function create(event: MouseEvent) {
+  haptic.tap()
+  openFrom(event.currentTarget as Element, '/create', 'morph')
+}
+
 onMounted(load)
 </script>
 
@@ -37,7 +45,7 @@ onMounted(load)
     <WireCubes class="empty__art" />
     <p class="empty__title">Пока пусто</p>
     <p class="hint">Здесь будут пати, которые ты создашь, и те, куда откликнешься.</p>
-    <RouterLink to="/create" class="btn btn-primary btn-small empty__cta">Создать пати</RouterLink>
+    <button class="btn btn-primary btn-small empty__cta" type="button" @click="create">Создать пати</button>
   </div>
   <div v-else class="stack">
     <LobbyCard v-for="lobby in items" :key="lobby.id" :lobby="lobby" show-my-status />
