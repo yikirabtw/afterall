@@ -100,6 +100,7 @@ class UserGameIn(BaseModel):
     rank_id: int | None = None
     role_ids: list[int] = Field(default_factory=list, max_length=5)
     in_game_nick: ShortText | None = None
+    faceit_elo: int | None = Field(default=None, ge=100, le=5000)  # только для игр с FACEIT (CS2)
     is_main: bool = False
 
     @field_validator("role_ids")
@@ -217,6 +218,7 @@ class UserGameOut(Schema):
     rank_id: int | None
     role_ids: list[int]
     in_game_nick: str | None
+    faceit_elo: int | None
     is_main: bool
 
 
@@ -275,6 +277,7 @@ class GameOut(Schema):
     name: str
     platforms: list[str]
     max_party_size: int | None
+    has_faceit: bool
     icon_url: str | None
     ranks: list[GameRankOut]
     roles: list[GameRoleOut]
@@ -297,6 +300,7 @@ class LobbyMemberOut(BaseModel):
     has_mic: bool
     rank_id: int | None  # ранг в игре этой пати
     role_ids: list[int]
+    faceit_elo: int | None = None
     status: MemberStatus
     is_owner: bool
     note: str | None
@@ -349,6 +353,7 @@ class PersonGameOut(Schema):
     game_id: int
     rank_id: int | None
     role_ids: list[int]
+    faceit_elo: int | None
     is_main: bool
 
 

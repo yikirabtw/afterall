@@ -76,6 +76,7 @@ def _member_out(member: LobbyMember, game_id: int | None, with_contacts: bool) -
         has_mic=profile.has_mic if profile else False,
         rank_id=user_game.rank_id if user_game else None,
         role_ids=user_game.role_ids if user_game else [],
+        faceit_elo=user_game.faceit_elo if user_game else None,
         status=member.status,
         is_owner=member.is_owner,
         note=member.note,

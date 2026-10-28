@@ -1,13 +1,18 @@
 """Заполняет справочник игр. Можно запускать повторно: обновляет игры по slug, ранги и роли по code.
 
 Запуск из папки backend:  python -m scripts.seed_games
-Список стартовый — правится после выбора первых игр.
+Активны только игры из ACTIVE_ORDER — остальные выключены, но не удалены: у кого-то они уже выбраны.
 """
 
 from sqlalchemy import select
 
 from app.db.models import Game, GameRank, GameRole
 from app.db.session import SessionLocal
+
+# Какие игры показываем и в каком порядке (решение 28.10.2026: пока только эти четыре)
+ACTIVE_ORDER = ["dota2", "cs2", "valorant", "minecraft"]
+# Игры, где можно указать FACEIT ELO
+FACEIT_GAMES = {"cs2"}
 
 # Ранги — от низшего к высшему, роли — в порядке показа
 GAMES = [
@@ -161,7 +166,10 @@ def seed() -> None:
             game.name = data["name"]
             game.platforms = data["platforms"]
             game.max_party_size = data["max_party_size"]
-            game.sort_order = order
+            active = data["slug"] in ACTIVE_ORDER
+            game.is_active = active
+            game.sort_order = ACTIVE_ORDER.index(data["slug"]) if active else 100 + order
+            game.has_faceit = data["slug"] in FACEIT_GAMES
 
             ranks_by_code = {rank.code: rank for rank in game.ranks}
             for tier, (code, name) in enumerate(data["ranks"], start=1):

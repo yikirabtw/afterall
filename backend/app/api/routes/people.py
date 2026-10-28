@@ -62,6 +62,7 @@ def _traits(user: User, tiers: dict[int, int]) -> Traits:
         looking_for=profile.looking_for,
         languages=set(profile.languages),
         has_mic=profile.has_mic,
+        faceit={game.game_id: game.faceit_elo for game in user.games if game.faceit_elo is not None},
     )
 
 

@@ -7,7 +7,7 @@ import type { LobbyDetail, LobbyMember, MemberDecision } from '../api/types'
 import PageHeader from '../components/PageHeader.vue'
 import { formatStart } from '../format'
 import { LOBBY_STATUS_LABELS, PLAY_STYLE_LABELS } from '../labels'
-import { ACTIVE_STATUSES, gameTitle, rankName, rankRangeLabel, roleNames } from '../lobby'
+import { ACTIVE_STATUSES, faceitLabel, gameTitle, rankName, rankRangeLabel, roleNames } from '../lobby'
 import { confirmAction, haptic, openExternal } from '../telegram'
 
 const props = defineProps<{ id: number }>()
@@ -78,6 +78,7 @@ function memberMeta(member: LobbyMember): string[] {
   const parts: string[] = []
   const rank = rankName(gameId, member.rank_id)
   if (rank) parts.push(rank)
+  if (member.faceit_elo !== null) parts.push(faceitLabel(member.faceit_elo))
   parts.push(...roleNames(gameId, member.role_ids))
   if (!member.has_mic) parts.push('без микрофона')
   if (member.reputation) parts.push(`репутация ${member.reputation > 0 ? '+' : ''}${member.reputation}`)

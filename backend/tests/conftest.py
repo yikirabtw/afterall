@@ -59,7 +59,7 @@ async def world(session_maker) -> dict[str, int]:
             GameRank(code="crusader", name="Рыцарь", tier=3),
         ]
         dota.roles = [GameRole(code="carry", name="Керри")]
-        cs2 = Game(slug="cs2", name="Counter-Strike 2", platforms=["pc"], max_party_size=5)
+        cs2 = Game(slug="cs2", name="Counter-Strike 2", platforms=["pc"], max_party_size=5, has_faceit=True)
         cs2.ranks = [GameRank(code="p0", name="Premier до 5 000", tier=1)]
         old = Game(slug="old", name="Старая игра", is_active=False)
         session.add_all([dota, cs2, old])

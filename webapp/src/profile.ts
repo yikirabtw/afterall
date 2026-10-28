@@ -1,6 +1,6 @@
 // Анкета: лимиты и заготовка формы — общие для регистрации и редактирования профиля
 
-import type { Me, ProfileInput } from './api/types'
+import type { Me, ProfileInput, UserGameInput } from './api/types'
 
 export const NAME_MAX = 20
 export const BIO_MAX = 150
@@ -27,4 +27,24 @@ export function profileFormFrom(me: Me): ProfileInput {
 export function profileError(form: ProfileInput): string | null {
   if (!form.display_name.trim()) return 'Как тебя называть? Ник обязателен.'
   return null
+}
+
+export const FACEIT_MIN = 100
+export const FACEIT_MAX = 5000
+
+/** Текст ошибки или null, если список игр можно сохранять */
+export function gamesError(choices: UserGameInput[]): string | null {
+  if (choices.length === 0) return 'Выбери хотя бы одну игру.'
+  const badElo = choices.some(
+    (choice) => choice.faceit_elo !== null && (choice.faceit_elo < FACEIT_MIN || choice.faceit_elo > FACEIT_MAX),
+  )
+  if (badElo) return `FACEIT ELO — число от ${FACEIT_MIN} до ${FACEIT_MAX}.`
+  return null
+}
+
+/** Свои игры для редактирования — без выключенных игр: их больше нельзя выбрать */
+export function gameChoicesFrom(me: Me, activeGameIds: Set<number>): UserGameInput[] {
+  return me.games
+    .filter((game) => activeGameIds.has(game.game_id))
+    .map(({ game_id, rank_id, role_ids, faceit_elo, is_main }) => ({ game_id, rank_id, role_ids, faceit_elo, is_main }))
 }

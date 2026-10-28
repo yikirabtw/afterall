@@ -201,3 +201,28 @@ async def test_reaction_kind_is_validated(client, make_player):
     response = await client.post(f"/api/people/{other.id}/react", json={"kind": "superlike"}, headers=me.headers)
     assert response.status_code == 422
     assert ReactionKind.LIKE.value == "like"
+
+
+def test_close_faceit_counts_as_close_rank():
+    names = {2: "CS2"}
+    # Ранги Premier далеко друг от друга, зато FACEIT почти одинаковый
+    me = traits(games={2: 1}, main_game_id=2, faceit={2: 2100})
+    close = compatibility(me, traits(games={2: 7}, main_game_id=2, faceit={2: 2250}), names)
+    far = compatibility(me, traits(games={2: 7}, main_game_id=2, faceit={2: 1200}), names)
+
+    assert "Близкий FACEIT в CS2" in close.reasons
+    assert close.score - far.score == 10
+
+
+async def test_feed_shows_faceit(client, make_player, world, session_maker):
+    from sqlalchemy import update
+
+    from app.db.models import UserGame
+
+    me = await make_player(games={"cs2": "p0"})
+    other = await make_player(games={"cs2": "p0"})
+    async with session_maker.begin() as session:
+        await session.execute(update(UserGame).where(UserGame.user_id == other.id).values(faceit_elo=1800))
+
+    [person] = await feed(client, me)
+    assert person["games"][0]["faceit_elo"] == 1800

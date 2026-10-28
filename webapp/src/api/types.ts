@@ -27,6 +27,7 @@ export interface UserGame {
   game_id: number
   rank_id: number | null
   role_ids: number[]
+  faceit_elo: number | null
   in_game_nick: string | null
   is_main: boolean
 }
@@ -72,6 +73,7 @@ export interface Game {
   name: string
   platforms: string[]
   max_party_size: number | null
+  has_faceit: boolean // можно указать FACEIT ELO (пока только CS2)
   icon_url: string | null
   ranks: GameRank[]
   roles: GameRole[]
@@ -94,6 +96,7 @@ export interface UserGameInput {
   game_id: number
   rank_id: number | null
   role_ids: number[]
+  faceit_elo: number | null
   is_main: boolean
 }
 
@@ -134,6 +137,7 @@ export interface LobbyMember {
   has_mic: boolean
   rank_id: number | null // ранг в игре этой пати
   role_ids: number[]
+  faceit_elo: number | null
   status: MemberStatus
   is_owner: boolean
   note: string | null
@@ -188,6 +192,7 @@ export interface PersonGame {
   game_id: number
   rank_id: number | null
   role_ids: number[]
+  faceit_elo: number | null
   is_main: boolean
 }
 

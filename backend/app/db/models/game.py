@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, Column, ForeignKey, SmallInteger, String, Table, UniqueConstraint
+from sqlalchemy import JSON, Column, ForeignKey, SmallInteger, String, Table, UniqueConstraint, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, BigIntPK, TimestampMixin
@@ -23,6 +23,8 @@ class Game(Base):
     max_party_size: Mapped[int | None] = mapped_column(SmallInteger)  # None — без ограничения
     icon_url: Mapped[str | None] = mapped_column(String(512))
     is_active: Mapped[bool] = mapped_column(default=True)
+    # Есть ли рейтинг FACEIT (пока только CS2) — тогда в профиле можно указать ELO
+    has_faceit: Mapped[bool] = mapped_column(default=False, server_default=false())
     sort_order: Mapped[int] = mapped_column(default=0)
 
     ranks: Mapped[list[GameRank]] = relationship(
@@ -84,6 +86,8 @@ class UserGame(TimestampMixin, Base):
     game_id: Mapped[int] = mapped_column(ForeignKey("games.id", ondelete="CASCADE"), index=True)
     rank_id: Mapped[int | None] = mapped_column(ForeignKey("game_ranks.id", ondelete="SET NULL"))
     in_game_nick: Mapped[str | None] = mapped_column(String(64))
+    # ELO на FACEIT — многие в CS2 играют там, а не в Premier. Уровень 1–10 считается из ELO на лету
+    faceit_elo: Mapped[int | None] = mapped_column(SmallInteger)
     is_main: Mapped[bool] = mapped_column(default=False)
 
     user: Mapped[User] = relationship(back_populates="games")

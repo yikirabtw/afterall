@@ -109,3 +109,9 @@
 
 ## Как запустить локально
 См. `README.md`.
+
+Игры и FACEIT (28.10.2026): активны 4 игры — Dota 2, CS2, Valorant, Minecraft (`ACTIVE_ORDER` в
+`scripts/seed_games.py`, остальные выключены, не удалены). У CS2 `has_faceit` — поле `user_games.faceit_elo`
+(100–5000), уровень 1–10 считается на клиенте (`lobby.ts: faceitLevel`), в «Совпадении» разница ≤200 ELO = близкий ранг.
+Выбор игр — общий `components/GamesPicker.vue` (регистрация и `/profile/games`). В профиле «Игры» и «Ещё» нажимаются.
+Миграция `95489961c970` — `server_default=sa.false()` поправлен вручную (автоген писал SQLite-шный `0`).

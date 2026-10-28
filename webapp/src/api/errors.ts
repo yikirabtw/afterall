@@ -14,6 +14,7 @@ const MESSAGES: Record<string, string> = {
   unknown_game: 'Такой игры нет в списке. Обнови приложение.',
   rank_not_in_game: 'Этот ранг не подходит к выбранной игре.',
   role_not_in_game: 'Эта роль не подходит к выбранной игре.',
+  faceit_not_supported: 'FACEIT можно указать только для CS2.',
   validation_error: 'Проверь, всё ли заполнено правильно.',
 
   // Фото и люди

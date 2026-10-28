@@ -26,3 +26,16 @@ export function rankRangeLabel(lobby: Pick<Lobby, 'game_id' | 'rank_min_id' | 'r
 export function gameTitle(lobby: Pick<Lobby, 'game_id'>): string {
   return gameById(lobby.game_id)?.name ?? 'Просто посидеть'
 }
+
+// Верхние границы ELO для уровней FACEIT 1–9; выше 2000 — 10 уровень
+const FACEIT_LEVEL_MAX = [500, 750, 900, 1050, 1200, 1350, 1530, 1750, 2000]
+
+export function faceitLevel(elo: number): number {
+  const index = FACEIT_LEVEL_MAX.findIndex((max) => elo <= max)
+  return index === -1 ? 10 : index + 1
+}
+
+/** «FACEIT 2150 · 10 lvl» */
+export function faceitLabel(elo: number): string {
+  return `FACEIT ${elo} · ${faceitLevel(elo)} lvl`
+}

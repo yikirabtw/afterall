@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import PhotoCarousel from '../components/PhotoCarousel.vue'
 import { formatAge } from '../format'
 import { LANGUAGES, LOOKING_FOR, PLAY_STYLE_LABELS } from '../labels'
+import { faceitLabel } from '../lobby'
 import { gameById, session } from '../stores/session'
 import { haptic } from '../telegram'
 
@@ -21,16 +22,21 @@ const age = computed(() => {
   return today.getFullYear() - birth.getFullYear() - (hadBirthday ? 0 : 1)
 })
 
+// Выключенные игры (их нет в справочнике) не показываем — выбрать их уже нельзя
 const games = computed(() =>
-  me.value.games.map((userGame) => {
+  me.value.games.flatMap((userGame) => {
     const game = gameById(userGame.game_id)
-    return {
-      id: userGame.game_id,
-      name: game?.name ?? '—',
-      isMain: userGame.is_main,
-      rank: game?.ranks.find((rank) => rank.id === userGame.rank_id)?.name ?? null,
-      roles: game?.roles.filter((role) => userGame.role_ids.includes(role.id)).map((role) => role.name) ?? [],
-    }
+    if (!game) return []
+    return [
+      {
+        id: userGame.game_id,
+        name: game.name,
+        isMain: userGame.is_main,
+        rank: game.ranks.find((rank) => rank.id === userGame.rank_id)?.name ?? null,
+        faceit: userGame.faceit_elo !== null ? faceitLabel(userGame.faceit_elo) : null,
+        roles: game.roles.filter((role) => userGame.role_ids.includes(role.id)).map((role) => role.name),
+      },
+    ]
   }),
 )
 
@@ -83,22 +89,46 @@ function edit(event: Event) {
 
     <p v-if="profile.bio" class="card bio">{{ profile.bio }}</p>
 
+    <!-- Разделы нажимаются целиком: «Игры» — редактор игр, «Ещё» — анкета -->
     <h2 class="section-title">Игры</h2>
-    <div class="card list">
+    <RouterLink to="/profile/games" class="card list tappable" @click="haptic.tap()">
       <div v-for="game in games" :key="game.id" class="list__row">
         <div>
           <b>{{ game.name }}</b>
           <span v-if="game.isMain" class="badge badge--accent main">Основная</span>
           <p v-if="game.roles.length" class="hint row-hint">{{ game.roles.join(', ') }}</p>
         </div>
-        <span class="hint">{{ game.rank ?? 'без ранга' }}</span>
+        <span class="row-end">
+          <span class="hint row-value">
+            {{ game.rank ?? (game.faceit ? '' : 'без ранга') }}
+            <span v-if="game.faceit" class="faceit">{{ game.faceit }}</span>
+          </span>
+          <span class="chevron" aria-hidden="true">›</span>
+        </span>
       </div>
-    </div>
+      <div v-if="!games.length" class="list__row">
+        <span class="hint">Игры не выбраны</span>
+        <span class="chevron" aria-hidden="true">›</span>
+      </div>
+    </RouterLink>
 
     <h2 class="section-title">Ещё</h2>
     <div class="card list">
-      <div class="list__row"><span>Языки</span><span class="hint">{{ languages }}</span></div>
-      <div class="list__row"><span>Discord</span><span class="hint">{{ profile.discord_tag ?? 'не указан' }}</span></div>
+      <RouterLink to="/profile/edit" class="list__row tappable" @click="haptic.tap()">
+        <span>Языки</span>
+        <span class="row-end"><span class="hint">{{ languages }}</span><span class="chevron" aria-hidden="true">›</span></span>
+      </RouterLink>
+      <RouterLink to="/profile/edit" class="list__row tappable" @click="haptic.tap()">
+        <span>Discord</span>
+        <span class="row-end">
+          <span class="hint">{{ profile.discord_tag ?? 'не указан' }}</span>
+          <span class="chevron" aria-hidden="true">›</span>
+        </span>
+      </RouterLink>
+      <RouterLink to="/profile/edit" class="list__row tappable" @click="haptic.tap()">
+        <span>Кого ищу, стиль, микрофон</span>
+        <span class="row-end"><span class="hint">{{ lookingFor }}</span><span class="chevron" aria-hidden="true">›</span></span>
+      </RouterLink>
     </div>
     <p class="hint">Discord и ник в Telegram видны только после взаимного лайка или в общей пати.</p>
   </main>
@@ -196,6 +226,47 @@ function edit(event: Event) {
 
 .main {
   margin-left: 8px;
+}
+
+.tappable {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+a.list__row.tappable {
+  display: flex;
+}
+
+.tappable:active {
+  opacity: 0.7;
+}
+
+.row-end {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  text-align: right;
+}
+
+.row-value {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.faceit {
+  color: var(--warm);
+  font-weight: 700;
+}
+
+.chevron {
+  flex: none;
+  color: var(--hint);
+  font-size: 22px;
+  line-height: 1;
 }
 
 .row-hint {

@@ -21,7 +21,7 @@ async def games(session_maker) -> dict[str, int]:
         dota = Game(slug="dota2", name="Dota 2", platforms=["pc"], max_party_size=5)
         dota.ranks = [GameRank(code="herald", name="Рекрут", tier=1), GameRank(code="guardian", name="Страж", tier=2)]
         dota.roles = [GameRole(code="carry", name="Керри", sort_order=0), GameRole(code="mid", name="Мид", sort_order=1)]
-        cs2 = Game(slug="cs2", name="Counter-Strike 2", platforms=["pc"], max_party_size=5)
+        cs2 = Game(slug="cs2", name="Counter-Strike 2", platforms=["pc"], max_party_size=5, has_faceit=True)
         cs2.ranks = [GameRank(code="premier_0", name="Premier до 5 000", tier=1)]
         cs2.roles = [GameRole(code="awp", name="Снайпер", sort_order=0)]
         old = Game(slug="old", name="Старая игра", is_active=False)
@@ -146,6 +146,7 @@ async def test_save_and_replace_games(client, games):
         "rank_id": games["guardian"],
         "role_ids": [games["carry"], games["mid"]],  # в порядке ролей игры
         "in_game_nick": "anya",
+        "faceit_elo": None,
         "is_main": True,  # основная не указана — стала первая
     }
     assert (cs2["game_id"], cs2["is_main"]) == (games["cs2"], False)
@@ -254,3 +255,39 @@ async def test_full_onboarding(client, games, session_maker):
     async with session_maker() as session:
         user = await session.scalar(select(User).where(User.telegram_id == USER_ID))
     assert user.onboarded_at == first_onboarded_at
+
+
+# --- FACEIT ---
+
+
+async def test_faceit_elo_for_cs2(client, games):
+    response = await client.put(
+        "/api/me/games",
+        json={"games": [{"game_id": games["cs2"], "rank_id": games["premier_0"], "faceit_elo": 2150}]},
+        headers=auth(),
+    )
+
+    assert response.status_code == 200
+    [cs2] = response.json()["games"]
+    assert (cs2["rank_id"], cs2["faceit_elo"]) == (games["premier_0"], 2150)
+
+
+async def test_faceit_only_where_supported(client, games):
+    response = await client.put(
+        "/api/me/games", json={"games": [{"game_id": games["dota"], "faceit_elo": 1500}]}, headers=auth()
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"] == "faceit_not_supported"
+
+
+@pytest.mark.parametrize("elo", [50, 9999])
+async def test_faceit_elo_range(client, games, elo):
+    response = await client.put(
+        "/api/me/games", json={"games": [{"game_id": games["cs2"], "faceit_elo": elo}]}, headers=auth()
+    )
+    assert response.status_code == 422
+
+
+async def test_games_list_says_where_faceit_is(client, games):
+    response = await client.get("/api/games", headers=auth())
+    assert {game["slug"]: game["has_faceit"] for game in response.json()} == {"dota2": False, "cs2": True}

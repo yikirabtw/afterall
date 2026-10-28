@@ -75,11 +75,14 @@ async def save_games(body: GamesIn, user: CurrentUser, session: SessionDep, phot
         roles = [role for role in game.roles if role.id in choice.role_ids]
         if len(roles) != len(choice.role_ids):
             raise _invalid("role_not_in_game")
+        if choice.faceit_elo is not None and not game.has_faceit:
+            raise _invalid("faceit_not_supported")
         new_games.append(
             UserGame(
                 user_id=user.id,
                 game_id=game.id,
                 rank_id=choice.rank_id,
+                faceit_elo=choice.faceit_elo,
                 in_game_nick=choice.in_game_nick,
                 is_main=choice.is_main,
                 roles=roles,

@@ -3,19 +3,26 @@ import { computed } from 'vue'
 
 import type { Person } from '../api/types'
 import { PLAY_STYLE_LABELS } from '../labels'
-import { rankName } from '../lobby'
+import { faceitLabel, rankName } from '../lobby'
 import { gameById } from '../stores/session'
 import PhotoCarousel from './PhotoCarousel.vue'
 
 const props = defineProps<{ person: Person }>()
 
-// Сначала общие игры — их и подсвечиваем
+// Сначала общие игры — их и подсвечиваем; выключенных игр (нет в справочнике) не показываем
 const games = computed(() =>
   [...props.person.games]
+    .filter((game) => gameById(game.game_id))
     .sort((a, b) => Number(props.person.common_game_ids.includes(b.game_id)) - Number(props.person.common_game_ids.includes(a.game_id)))
     .map((game) => ({
       id: game.game_id,
-      label: [gameById(game.game_id)?.name, rankName(game.game_id, game.rank_id)].filter(Boolean).join(' · '),
+      label: [
+        gameById(game.game_id)?.name,
+        rankName(game.game_id, game.rank_id),
+        game.faceit_elo !== null ? faceitLabel(game.faceit_elo) : null,
+      ]
+        .filter(Boolean)
+        .join(' · '),
       common: props.person.common_game_ids.includes(game.game_id),
     })),
 )

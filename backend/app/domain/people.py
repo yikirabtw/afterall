@@ -1,6 +1,6 @@
 """Лента людей: правила показа и «Совпадение N%» — насколько человек подходит и почему."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 
 from app.db.enums import LookingFor, PlayStyle
@@ -10,6 +10,8 @@ SKIP_COOLDOWN = timedelta(days=3)
 # Сколько недавно активных людей берём из базы, чтобы отсортировать их по совпадению
 CANDIDATE_POOL = 200
 MAX_REASONS = 3
+# Разница FACEIT ELO, при которой ранг считается близким (примерно один уровень FACEIT)
+FACEIT_CLOSE_ELO = 200
 
 STYLE_NAMES = {PlayStyle.CHILL: "чилл", PlayStyle.BALANCED: "баланс", PlayStyle.TRYHARD: "трайхард"}
 _STYLE_ORDER = [PlayStyle.CHILL, PlayStyle.BALANCED, PlayStyle.TRYHARD]
@@ -25,6 +27,7 @@ class Traits:
     looking_for: LookingFor
     languages: set[str]
     has_mic: bool
+    faceit: dict[int, int] = field(default_factory=dict)  # game_id → FACEIT ELO, если указан
 
 
 @dataclass
@@ -48,8 +51,14 @@ def compatibility(me: Traits, other: Traits, game_names: dict[int, str]) -> Comp
         if me.main_game_id is not None and me.main_game_id == other.main_game_id:
             score += 10
 
+    # Близкий ранг: соседние ранги или, если у обоих указан FACEIT, разница ELO до FACEIT_CLOSE_ELO
     for game_id in common:
         mine, theirs = me.games[game_id], other.games[game_id]
+        my_elo, their_elo = me.faceit.get(game_id), other.faceit.get(game_id)
+        if my_elo is not None and their_elo is not None and abs(my_elo - their_elo) <= FACEIT_CLOSE_ELO:
+            score += 10
+            reasons.append(f"Близкий FACEIT в {game_names.get(game_id, 'игре')}")
+            break
         if mine is not None and theirs is not None and abs(mine - theirs) <= 1:
             score += 10
             reasons.append(f"Близкий ранг в {game_names.get(game_id, 'игре')}")

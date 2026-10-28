@@ -2,6 +2,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 
 import { session } from './stores/session'
 import CreateLobbyView from './views/CreateLobbyView.vue'
+import EditGamesView from './views/EditGamesView.vue'
 import EditProfileView from './views/EditProfileView.vue'
 import FeedView from './views/FeedView.vue'
 import HomeLayout from './views/HomeLayout.vue'
@@ -32,6 +33,7 @@ export const router = createRouter({
     { path: '/lobby/:id(\\d+)', component: LobbyView, props: (route) => ({ id: Number(route.params.id) }) },
     { path: '/matches', component: MatchesView },
     { path: '/profile/edit', component: EditProfileView },
+    { path: '/profile/games', component: EditGamesView },
     { path: '/:pathMatch(.*)*', redirect: '/feed' },
   ],
 })
