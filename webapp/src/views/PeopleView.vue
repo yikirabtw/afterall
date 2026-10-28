@@ -169,7 +169,7 @@ async function decide(kind: ReactionKind) {
 <template>
   <main class="people">
     <header class="page-top people__top">
-      <h1 class="page-title">Люди</h1>
+      <h1 class="page-title">Лента</h1>
       <div class="people__tools">
         <RouterLink to="/matches" class="icon-btn" aria-label="Мэтчи" @click="haptic.tap()">
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
@@ -213,7 +213,7 @@ async function decide(kind: ReactionKind) {
         <button class="btn btn-ghost" type="button" @click="reload">Повторить</button>
       </div>
       <div v-else-if="!current" class="deck__state">
-        <p class="empty__title">Новые люди закончились</p>
+        <p class="empty__title">Анкеты закончились</p>
         <p class="hint">
           {{ filtersActive ? 'Попробуй ослабить фильтры.' : 'Загляни позже — пропущенные анкеты вернутся через пару дней.' }}
         </p>
