@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.api.routes import chats, games, health, lobbies, me, onboarding, people, photos, safety, telegram
+from app.api.routes import boosts, chats, games, health, lobbies, me, onboarding, people, photos, safety, telegram
 from app.bot.dispatcher import build_dispatcher
 from app.bot.setup import setup_bot
 from app.config import settings
@@ -73,7 +73,7 @@ def create_app(
         allow_methods=["*"],
         allow_headers=["Authorization", "Content-Type"],
     )
-    for module in (health, me, onboarding, photos, people, games, lobbies, chats, safety):
+    for module in (health, me, onboarding, photos, people, games, lobbies, chats, safety, boosts):
         app.include_router(module.router, prefix="/api")
     app.include_router(telegram.router)
     if static_dir is not None:

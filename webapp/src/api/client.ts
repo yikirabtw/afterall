@@ -1,6 +1,8 @@
 import { getInitData } from '../telegram'
 import type {
   BlockedUser,
+  BoostKind,
+  BoostStatus,
   Chat,
   ChatKind,
   ChatMessage,
@@ -116,6 +118,10 @@ export const api = {
   matches: () => request<Match[]>('GET', '/matches'),
   // Кто лайкнул: число — всем, список — с Plus и Premium
   likes: () => request<LikesInfo>('GET', '/people/likes'),
+  // Бусты: поднять свою пати на час или анкету на вечер
+  boosts: () => request<BoostStatus>('GET', '/boosts'),
+  useBoost: (kind: BoostKind, lobbyId?: number) =>
+    request<BoostStatus>('POST', '/boosts', { kind, lobby_id: lobbyId ?? null }),
   // Вернуть последнюю пропущенную анкету: Plus — 3 в сутки, Premium — без лимита
   rewind: () => request<RewindResult>('POST', '/people/rewind'),
 

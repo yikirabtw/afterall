@@ -41,6 +41,7 @@ const meta = computed(() =>
       <b>{{ person.compatibility }}%</b>
       <span>совпадение</span>
     </span>
+    <span v-if="person.boosted" class="boost-tag person__boost">поднята</span>
     <h2 class="person__name">
       {{ person.display_name }}<span v-if="person.age !== null" class="person__age">, {{ person.age }}</span>
       <PlanBadge :plan="person.plan" />
@@ -94,6 +95,15 @@ const meta = computed(() =>
 }
 
 /* «Совпадение N%» — наша изюминка: крупные цифры со свечением */
+/* Поверх фото — белая, как и «совпадение» */
+.person__boost {
+  margin-left: 6px;
+  vertical-align: 3px;
+  border-color: rgb(255 255 255 / 0.7);
+  background: rgb(0 0 0 / 0.45);
+  color: #fff;
+}
+
 .person__match {
   display: inline-flex;
   align-items: baseline;

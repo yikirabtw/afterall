@@ -18,6 +18,7 @@ from pydantic import (
 
 from app.db.enums import (
     AgeGroup,
+    BoostKind,
     LobbyKind,
     LobbyStatus,
     LookingFor,
@@ -383,6 +384,7 @@ class LobbyOut(BaseModel):
     is_owner: bool
     my_status: MemberStatus | None  # мой отклик или участие; None — не откликался
     contact_link: str | None  # только создателю и принятым
+    boosted_until: UtcDatetime | None = None  # поднята в ленте до (буст); на карточке — пометка «поднята»
 
 
 class LobbyDetailOut(LobbyOut):
@@ -432,6 +434,7 @@ class PersonOut(BaseModel):
     common_game_ids: list[int]
     reasons: list[str]
     plan: Plan = "free"  # для значка Plus / Premium у ника
+    boosted: bool = False  # анкета поднята бустом — честная пометка на карточке
 
 
 class ReactIn(BaseModel):
@@ -457,6 +460,22 @@ class LikesOut(BaseModel):
 
     count: int
     people: list[PersonOut] | None  # None — бесплатный тариф: сервер не отдаёт ни имён, ни фото
+
+
+class BoostIn(BaseModel):
+    kind: BoostKind
+    lobby_id: int | None = None  # для kind=lobby — какую из своих пати поднять
+
+
+class BoostStatusOut(BaseModel):
+    """Мои бусты: бесплатные по подписке на этой неделе, купленные, что поднято сейчас."""
+
+    weekly_total: int
+    weekly_left: int
+    credits: int
+    today_left: int
+    profile_until: UtcDatetime | None
+    lobbies: dict[int, UtcDatetime]  # мои поднятые пати → до какого момента
 
 
 class RewindOut(BaseModel):

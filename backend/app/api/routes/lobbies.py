@@ -29,6 +29,7 @@ from app.bot import texts
 from app.domain.plans import ACTIVE_LOBBY_LIMITS
 from app.domain.time import utcnow
 from app.services.notify import Note
+from app.services.boosts import boosted_lobbies
 from app.services.plans import plan_of
 from app.services.users import ban_inactive_clause, blocked_user_ids, is_ban_active
 
@@ -124,7 +125,9 @@ async def _my_rank_tier(session: AsyncSession, user_id: int, game_id: int | None
 
 
 async def _detail(session: AsyncSession, lobby_id: int, viewer: User, now: datetime) -> LobbyDetailOut:
-    return lobby_detail_out(await _get_visible_lobby(session, lobby_id, viewer, now), viewer.id, now)
+    out = lobby_detail_out(await _get_visible_lobby(session, lobby_id, viewer, now), viewer.id, now)
+    out.boosted_until = (await boosted_lobbies(session, now, [lobby_id])).get(lobby_id)
+    return out
 
 
 # --- Создание ---
@@ -212,7 +215,10 @@ async def lobby_feed(
     cursor: Annotated[int | None, Query(description="next_cursor из предыдущей страницы")] = None,
     limit: Annotated[int, Query(ge=1, le=50)] = 20,
 ) -> LobbyFeedOut:
-    """Лента открытых пати своей возрастной группы, новые сверху. Свои пати сюда не попадают — они в /mine."""
+    """Лента открытых пати своей возрастной группы, новые сверху. Свои пати сюда не попадают — они в /mine.
+
+    Поднятые бустом — первыми на первой странице (с пометкой), на остальных их нет. Фильтры действуют и на них.
+    """
     now = utcnow()
     query = (
         select(Lobby)
@@ -226,8 +232,6 @@ async def lobby_feed(
             ban_inactive_clause(now),
         )
         .options(*FEED_OPTIONS)
-        .order_by(Lobby.id.desc())
-        .limit(limit + 1)
     )
     if game_id is not None:
         query = query.where(Lobby.game_id == game_id)
@@ -237,19 +241,26 @@ async def lobby_feed(
         query = query.where(Lobby.language == language)
     if play_style is not None:
         query = query.where(or_(Lobby.play_style == play_style, Lobby.play_style.is_(None)))
-    if cursor is not None:
-        query = query.where(Lobby.id < cursor)
     if fits_me:
         profile = await session.get(Profile, user.id)
         query = _only_fitting(query, user, has_mic=bool(profile and profile.has_mic))
 
-    lobbies = list(await session.scalars(query))
+    boosted = await boosted_lobbies(session, now)
+    top: list[Lobby] = []
+    if cursor is None and boosted:
+        top = list(await session.scalars(query.where(Lobby.id.in_(list(boosted))).order_by(Lobby.id.desc())))
+    page = query.where(Lobby.id.not_in(list(boosted))).order_by(Lobby.id.desc()).limit(limit + 1)
+    if cursor is not None:
+        page = page.where(Lobby.id < cursor)
+    lobbies = list(await session.scalars(page))
     has_more = len(lobbies) > limit
     lobbies = lobbies[:limit]
-    return LobbyFeedOut(
-        items=[lobby_out(lobby, user.id, now) for lobby in lobbies],
-        next_cursor=lobbies[-1].id if has_more else None,
-    )
+    items = []
+    for lobby in top + lobbies:
+        out = lobby_out(lobby, user.id, now)
+        out.boosted_until = boosted.get(lobby.id)
+        items.append(out)
+    return LobbyFeedOut(items=items, next_cursor=lobbies[-1].id if has_more else None)
 
 
 @router.get("/mine", response_model=list[LobbyOut])
@@ -270,7 +281,13 @@ async def my_lobbies(user: OnboardedUser, session: SessionDep) -> list[LobbyOut]
         .options(*FEED_OPTIONS)
         .order_by(Lobby.expires_at.desc())
     )
-    return [lobby_out(lobby, user.id, now) for lobby in lobbies]
+    boosted = await boosted_lobbies(session, now)
+    result = []
+    for lobby in lobbies:
+        out = lobby_out(lobby, user.id, now)
+        out.boosted_until = boosted.get(lobby.id)
+        result.append(out)
+    return result
 
 
 @router.get("/{lobby_id}", response_model=LobbyDetailOut)

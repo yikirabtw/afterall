@@ -169,3 +169,20 @@ def set_plan(session_maker):
 
     return _set
 
+
+@pytest.fixture
+def create_lobby(client, world):
+    """Создать пати от имени игрока; игры и ранги — короткими именами из world."""
+
+    async def _create(owner: Player, expect: int = 201, **overrides) -> dict:
+        body = {"kind": "game", "game_id": "dota", "title": "Нужен саппорт", "slots_total": 3}
+        body.update(overrides)
+        # В тестах игры и ранги задаём короткими именами — подставляем id
+        for key in ("game_id", "rank_min_id", "rank_max_id"):
+            if isinstance(body.get(key), str):
+                body[key] = world[body[key]]
+        response = await client.post("/api/lobbies", json=body, headers=owner.headers)
+        assert response.status_code == expect, response.text
+        return response.json()
+
+    return _create

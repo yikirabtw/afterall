@@ -103,3 +103,13 @@ class SubscriptionSource(StrEnum):
     GRANT = "grant"  # выдал админ (тестерам, в подарок)
     STARS = "stars"  # оплата звёздами Telegram — появится позже
 
+
+class BoostKind(StrEnum):
+    LOBBY = "lobby"  # поднять пати на час
+    PROFILE = "profile"  # анкета первой на вечер
+
+
+class BoostSource(StrEnum):
+    WEEKLY = "weekly"  # бесплатный по подписке (Plus — 1 в неделю, Premium — 3)
+    CREDIT = "credit"  # купленный заранее (оплата звёздами)
+

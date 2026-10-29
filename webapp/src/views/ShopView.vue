@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
+import { api } from '../api/client'
+import { errorMessage } from '../api/errors'
+import type { BoostStatus } from '../api/types'
 import CosmeticPreview from '../components/CosmeticPreview.vue'
-import { formatDate } from '../format'
+import { formatDate, formatMessageTime } from '../format'
+import { router } from '../router'
 import { SHEET_MS } from '../sheet'
 import {
   BOOST_RULES,
@@ -16,7 +20,7 @@ import {
   type CosmeticKind,
 } from '../shop'
 import { session } from '../stores/session'
-import { shopTab } from '../stores/ui'
+import { lobbiesTab, shopTab } from '../stores/ui'
 import { haptic } from '../telegram'
 
 // Магазин — пока витрина (решение пользователя): всё с ценами, но покупки «Скоро».
@@ -49,6 +53,51 @@ function withDiscount(price: number): number {
 
 function soon() {
   haptic.select()
+}
+
+// --- Бусты: бесплатные по подписке тратятся здесь же (анкета) или на экране своей пати ---
+
+const boosts = ref<BoostStatus | null>(null)
+const boosting = ref(false)
+const boostError = ref('')
+const boostLeft = computed(() => (boosts.value ? boosts.value.weekly_left + boosts.value.credits : 0))
+
+async function loadBoosts() {
+  try {
+    boosts.value = await api.boosts()
+  } catch {
+    // статус бустов не обязателен для витрины
+  }
+}
+
+watch(
+  shopTab,
+  (tab) => {
+    if (tab === 'boosts' && !boosts.value) void loadBoosts()
+  },
+  { immediate: true },
+)
+
+async function boostProfile() {
+  if (boosting.value) return
+  boosting.value = true
+  boostError.value = ''
+  haptic.tap()
+  try {
+    boosts.value = await api.useBoost('profile')
+    haptic.success()
+  } catch (e) {
+    boostError.value = errorMessage(e)
+    haptic.error()
+  } finally {
+    boosting.value = false
+  }
+}
+
+function openMyLobbies() {
+  haptic.tap()
+  lobbiesTab.value = 'mine'
+  void router.push('/feed')
 }
 </script>
 
@@ -132,6 +181,27 @@ function soon() {
 
     <!-- Бусты -->
     <section v-else-if="shopTab === 'boosts'" :key="'boosts'" class="stack rise-in">
+      <div v-if="boosts" class="card my-boosts">
+        <p class="my-boosts__line">
+          <span class="hint">Бесплатных на этой неделе</span>
+          <b>{{ boosts.weekly_left }} из {{ boosts.weekly_total }}</b>
+        </p>
+        <p v-if="boosts.credits" class="my-boosts__line">
+          <span class="hint">Куплено</span>
+          <b>{{ boosts.credits }}</b>
+        </p>
+        <p v-if="boosts.profile_until" class="my-boosts__state">
+          <span class="boost-tag">поднята</span> Анкета первая в ленте до {{ formatMessageTime(boosts.profile_until) }}
+        </p>
+        <div v-else-if="boostLeft > 0" class="my-boosts__actions">
+          <button class="btn btn-primary btn-small" type="button" :disabled="boosting" @click="boostProfile">
+            Поднять анкету на вечер
+          </button>
+          <button class="btn btn-ghost btn-small" type="button" @click="openMyLobbies">Поднять пати</button>
+        </div>
+        <p v-else class="hint my-boosts__state">Бесплатные бусты — в Plus (1 в неделю) и Premium (3).</p>
+        <p v-if="boostError" class="error-text">{{ boostError }}</p>
+      </div>
       <article v-for="boost in BOOSTS" :key="boost.id" class="card boost">
         <span class="boost__icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="24" height="24">
@@ -255,6 +325,41 @@ function soon() {
   border-radius: 50%;
   background: var(--warn);
   box-shadow: 0 0 8px var(--warn);
+}
+
+/* --- Бусты: свой остаток --- */
+
+.my-boosts__line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 6px;
+}
+
+.my-boosts__line .hint {
+  margin: 0;
+}
+
+.my-boosts__line b {
+  font-family: var(--font-pixel);
+  font-size: 18px;
+  font-weight: 400;
+}
+
+.my-boosts__state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 0;
+  font-size: 14px;
+}
+
+.my-boosts__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
 }
 
 /* --- Подписки --- */

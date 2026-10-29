@@ -3,12 +3,13 @@ import { computed, onMounted, ref } from 'vue'
 
 import { ApiError, api } from '../api/client'
 import { errorMessage } from '../api/errors'
-import type { LobbyDetail, LobbyMember, MemberDecision } from '../api/types'
+import type { BoostStatus, LobbyDetail, LobbyMember, MemberDecision } from '../api/types'
 import PageHeader from '../components/PageHeader.vue'
-import { formatStart } from '../format'
+import { formatMessageTime, formatStart } from '../format'
 import { LOBBY_STATUS_LABELS, PLAY_STYLE_LABELS } from '../labels'
 import { ACTIVE_STATUSES, faceitLabel, gameColor, gameTitle, rankName, rankRangeLabel, roleNames } from '../lobby'
-import { openFrom } from '../router'
+import { openFrom, router } from '../router'
+import { shopTab } from '../stores/ui'
 import { confirmAction, haptic, openExternal } from '../telegram'
 
 const props = defineProps<{ id: number }>()
@@ -33,7 +34,49 @@ async function load() {
   }
 }
 
-onMounted(load)
+onMounted(async () => {
+  await load()
+  if (lobby.value?.is_owner) void loadBoosts()
+})
+
+// --- Буст своей пати: поднять в ленте на час (бесплатные по подписке, потом купленные) ---
+
+const boosts = ref<BoostStatus | null>(null)
+const boosting = ref(false)
+const boostError = ref('')
+
+async function loadBoosts() {
+  try {
+    boosts.value = await api.boosts()
+  } catch {
+    // без статуса бустов карточка пати работает как раньше
+  }
+}
+
+const canBoost = computed(() => (boosts.value ? boosts.value.weekly_left + boosts.value.credits > 0 : false))
+
+async function boostLobby() {
+  if (boosting.value) return
+  boosting.value = true
+  boostError.value = ''
+  haptic.tap()
+  try {
+    boosts.value = await api.useBoost('lobby', props.id)
+    if (lobby.value) lobby.value.boosted_until = boosts.value.lobbies[String(props.id)] ?? null
+    haptic.success()
+  } catch (e) {
+    boostError.value = errorMessage(e)
+    haptic.error()
+  } finally {
+    boosting.value = false
+  }
+}
+
+function openBoostShop() {
+  haptic.tap()
+  shopTab.value = 'boosts'
+  void router.push('/shop')
+}
 
 const isActive = computed(() => (lobby.value ? ACTIVE_STATUSES.includes(lobby.value.status) : false))
 const pending = computed(() => lobby.value?.members.filter((member) => member.status === 'pending') ?? [])
@@ -193,6 +236,25 @@ async function copyDiscord(tag: string) {
       </section>
 
       <p v-if="banner" class="banner" :class="`banner--${banner.tone}`">{{ banner.text }}</p>
+
+      <section v-if="lobby.is_owner && lobby.status === 'open' && boosts" class="card contact boost">
+        <div>
+          <b>Поднять в ленте</b>
+          <p v-if="lobby.boosted_until" class="hint">Поднята до {{ formatMessageTime(lobby.boosted_until) }} — первая в ленте</p>
+          <p v-else-if="canBoost" class="hint">
+            На час — первой в ленте. Бесплатных на неделе: {{ boosts.weekly_left }} из {{ boosts.weekly_total }}<template
+              v-if="boosts.credits"
+            >, куплено: {{ boosts.credits }}</template>
+          </p>
+          <p v-else class="hint">Бусты — в Plus и Premium. Купить отдельно — скоро</p>
+          <p v-if="boostError" class="error-text">{{ boostError }}</p>
+        </div>
+        <span v-if="lobby.boosted_until" class="boost-tag">поднята</span>
+        <button v-else-if="canBoost" class="btn btn-primary btn-small" type="button" :disabled="boosting" @click="boostLobby">
+          Поднять
+        </button>
+        <button v-else class="btn btn-outline btn-small" type="button" @click="openBoostShop">Бусты</button>
+      </section>
 
       <section v-if="inParty" class="card contact">
         <div>

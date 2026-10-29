@@ -44,6 +44,7 @@ const statusBadge = computed(() => {
     <p v-if="lobby.description" class="lobby__description">{{ lobby.description }}</p>
 
     <div class="chips lobby__tags">
+      <span v-if="lobby.boosted_until" class="boost-tag">поднята</span>
       <span v-if="statusBadge" class="badge badge--accent">{{ statusBadge }}</span>
       <span v-if="LOBBY_STATUS_LABELS[lobby.status]" class="badge">{{ LOBBY_STATUS_LABELS[lobby.status] }}</span>
       <span v-if="rankRange" class="badge">{{ rankRange }}</span>

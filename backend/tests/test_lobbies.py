@@ -12,22 +12,6 @@ from app.db.models import Block, Lobby, User
 from app.domain.time import utcnow
 
 
-@pytest.fixture
-def create_lobby(client, world):
-    async def _create(owner: Player, expect: int = 201, **overrides) -> dict:
-        body = {"kind": "game", "game_id": "dota", "title": "Нужен саппорт", "slots_total": 3}
-        body.update(overrides)
-        # В тестах игры и ранги задаём короткими именами — подставляем id
-        for key in ("game_id", "rank_min_id", "rank_max_id"):
-            if isinstance(body.get(key), str):
-                body[key] = world[body[key]]
-        response = await client.post("/api/lobbies", json=body, headers=owner.headers)
-        assert response.status_code == expect, response.text
-        return response.json()
-
-    return _create
-
-
 async def feed_ids(client, player: Player, **params) -> list[int]:
     response = await client.get("/api/lobbies", params=params, headers=player.headers)
     assert response.status_code == 200, response.text

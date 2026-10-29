@@ -32,6 +32,7 @@ from app.domain.plans import LIKES_LIST_MAX, LIKES_LIST_PLANS, REWIND_LIMITS, RE
 from app.domain.time import utcnow
 from app.bot import texts
 from app.services.notify import Note
+from app.services.boosts import boosted_profiles
 from app.services.plans import plan_of, plans_of
 from app.services.users import ban_inactive_clause, blocked_user_ids
 
@@ -216,12 +217,20 @@ async def people_feed(
     tiers, names = await _reference(session)
     me = _traits(me_user, tiers)
     scored = [(compatibility(me, _traits(person, tiers), names, mode), person) for person in candidates]
-    # Сортировка устойчивая: при равном совпадении первыми остаются недавно заходившие
+    # Сортировка устойчивая: при равном совпадении первыми остаются недавно заходившие.
+    # Поднятые бустом анкеты — первыми (среди тех, кого и так можно показать), с пометкой на карточке
     scored.sort(key=lambda pair: pair[0].score, reverse=True)
+    boosted = await boosted_profiles(session, [person.id for _, person in scored], now)
+    scored.sort(key=lambda pair: pair[1].id in boosted, reverse=True)
     today = now.date()
     shown = scored[:limit]
     plans = await plans_of(session, [person.id for _, person in shown], now)
-    return [_person_out(person, match, photo_url, today, plans.get(person.id, "free")) for match, person in shown]
+    result = []
+    for match, person in shown:
+        out = _person_out(person, match, photo_url, today, plans.get(person.id, "free"))
+        out.boosted = person.id in boosted
+        result.append(out)
+    return result
 
 
 @router.get("/people/likes", response_model=LikesOut)

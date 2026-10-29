@@ -157,6 +157,7 @@ export interface Lobby {
   is_owner: boolean
   my_status: MemberStatus | null
   contact_link: string | null
+  boosted_until: string | null // поднята бустом до — на карточке пометка «поднята»
 }
 
 export interface LobbyMember {
@@ -233,6 +234,7 @@ export interface Person {
   user_id: number
   display_name: string
   plan: Plan // значок Plus / Premium у ника
+  boosted: boolean // анкета поднята бустом — честная пометка
   age: number | null
   city: string | null
   bio: string | null
@@ -328,4 +330,18 @@ export interface BlockedUser {
   display_name: string
   photo: Photo | null
   blocked_at: string
+}
+
+// --- Бусты ---
+
+export type BoostKind = 'lobby' | 'profile'
+
+/** Мои бусты: бесплатные по подписке на неделе, купленные, что поднято сейчас */
+export interface BoostStatus {
+  weekly_total: number
+  weekly_left: number
+  credits: number
+  today_left: number
+  profile_until: string | null
+  lobbies: Record<string, string> // id моей пати → до какого момента поднята
 }
