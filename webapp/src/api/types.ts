@@ -266,7 +266,11 @@ export interface Match {
   matched_at: string
 }
 
+/** Лента «Кого ищу»: play — побегать, chat — поболтать, friends — друзья надолго; без режима — все */
+export type FeedMode = 'play' | 'chat' | 'friends'
+
 export interface PeopleParams {
+  mode?: FeedMode
   game_id?: number
   need_mic?: boolean
   play_style?: PlayStyle

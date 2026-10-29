@@ -63,7 +63,7 @@ async function apply() {
 
 function reset() {
   haptic.select()
-  draft.value = {}
+  draft.value = { mode: draft.value.mode } // режим «Кого ищу» — не фильтр, выбирается над лентой
   age.value = { min: null, max: null }
 }
 </script>

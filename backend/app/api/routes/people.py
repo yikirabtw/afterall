@@ -24,10 +24,10 @@ from app.api.schemas import (
     ReactOut,
     RewindOut,
 )
-from app.db.enums import MatchSource, PlayStyle, ReactionKind
+from app.db.enums import LookingFor, MatchSource, PlayStyle, ReactionKind
 from app.db.models import Game, GameRank, Match, Profile, Reaction, Rewind, User, UserGame
 from app.domain.age import age_on, search_range, search_range_fits, years_ago
-from app.domain.people import CANDIDATE_POOL, SKIP_COOLDOWN, Compatibility, Traits, compatibility
+from app.domain.people import CANDIDATE_POOL, SKIP_COOLDOWN, Compatibility, FeedMode, Traits, compatibility
 from app.domain.plans import LIKES_LIST_MAX, LIKES_LIST_PLANS, REWIND_LIMITS, REWIND_WINDOW, Plan
 from app.domain.time import utcnow
 from app.bot import texts
@@ -173,12 +173,18 @@ async def people_feed(
     need_mic: Annotated[bool, Query(description="Только с микрофоном")] = False,
     play_style: PlayStyle | None = None,
     language: LanguageCode | None = None,
+    mode: Annotated[FeedMode | None, Query(description="«Кого ищу»: play — побегать, chat — поболтать, friends")] = None,
     limit: Annotated[int, Query(ge=1, le=30)] = 10,
 ) -> list[PersonOut]:
     """Анкеты, отсортированные по «совпадению». Лайкнутые и удалённые из мэтчей не показываются,
-    пропущенные — вернутся через 3 дня."""
+    пропущенные — вернутся через 3 дня.
+
+    Режим «Кого ищу»: play — только с общей игрой и кто ищет игры; chat — кто ищет общение; friends — все.
+    От режима зависят и веса «Совпадения» (domain/people.WEIGHTS).
+    """
     now = utcnow()
     profile = await _my_profile(session, user, now)
+    me_user = await _load_person(session, user.id)
     query = (
         select(User)
         .join(Profile, Profile.user_id == User.id)
@@ -193,6 +199,14 @@ async def people_feed(
         query = query.where(Profile.has_mic.is_(True))
     if play_style is not None:
         query = query.where(Profile.play_style == play_style)
+    if mode == "play":
+        my_games = [game.game_id for game in me_user.games]
+        query = query.where(
+            Profile.looking_for.in_((LookingFor.GAMES, LookingFor.BOTH)),
+            User.id.in_(select(UserGame.user_id).where(UserGame.game_id.in_(my_games))),
+        )
+    elif mode == "chat":
+        query = query.where(Profile.looking_for.in_((LookingFor.HANGOUT, LookingFor.BOTH)))
 
     candidates = list(await session.scalars(query))
     if language is not None:
@@ -200,8 +214,8 @@ async def people_feed(
         candidates = [person for person in candidates if language in person.profile.languages]
 
     tiers, names = await _reference(session)
-    me = _traits(await _load_person(session, user.id), tiers)
-    scored = [(compatibility(me, _traits(person, tiers), names), person) for person in candidates]
+    me = _traits(me_user, tiers)
+    scored = [(compatibility(me, _traits(person, tiers), names, mode), person) for person in candidates]
     # Сортировка устойчивая: при равном совпадении первыми остаются недавно заходившие
     scored.sort(key=lambda pair: pair[0].score, reverse=True)
     today = now.date()

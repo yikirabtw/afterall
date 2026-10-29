@@ -3,12 +3,13 @@ import { computed, nextTick, onMounted, ref } from 'vue'
 
 import { api } from '../api/client'
 import { errorMessage } from '../api/errors'
-import type { Match, PeopleParams, Person, ReactionKind } from '../api/types'
+import type { FeedMode, Match, PeopleParams, Person, ReactionKind } from '../api/types'
 import MatchOverlay from '../components/MatchOverlay.vue'
 import PeopleFilters from '../components/PeopleFilters.vue'
 import PersonCard from '../components/PersonCard.vue'
 import WireCubes from '../components/WireCubes.vue'
 import { formatPeople } from '../format'
+import { FEED_MODES } from '../labels'
 import { openFrom, router } from '../router'
 import { session, setMe } from '../stores/session'
 import { shopTab } from '../stores/ui'
@@ -35,9 +36,18 @@ const ageNarrowed = computed(() => {
   const profile = session.me?.profile
   return profile?.search_age_min != null || profile?.search_age_max != null
 })
+// Режим «Кого ищу» — не фильтр: он выбирается над лентой и точку на ⋮ не зажигает
 const filtersActive = computed(
-  () => ageNarrowed.value || Object.values(filters.value).some((value) => value !== undefined && value !== false),
+  () =>
+    ageNarrowed.value ||
+    Object.entries(filters.value).some(([key, value]) => key !== 'mode' && value !== undefined && value !== false),
 )
+
+function setMode(mode: FeedMode | undefined) {
+  if (filters.value.mode === mode) return
+  haptic.select()
+  applyFilters({ ...filters.value, mode })
+}
 
 const current = computed(() => queue.value[0] ?? null)
 const next = computed(() => queue.value[1] ?? null)
@@ -278,6 +288,22 @@ async function decide(kind: ReactionKind) {
       <span class="likes-pill__arrow" aria-hidden="true">›</span>
     </button>
 
+    <!-- «Сегодня мне нужно…»: режим ленты -->
+    <div class="chips chips--scroll modes" role="tablist" aria-label="Сегодня мне нужно">
+      <button
+        v-for="option in FEED_MODES"
+        :key="option.label"
+        type="button"
+        role="tab"
+        class="chip"
+        :class="{ 'chip--on': filters.mode === option.value }"
+        :aria-selected="filters.mode === option.value"
+        @click="setMode(option.value)"
+      >
+        {{ option.label }}
+      </button>
+    </div>
+
     <section class="deck">
       <PersonCard v-if="next" :key="`under-${next.user_id}`" :person="next" class="deck__under" />
       <div v-if="current" :key="current.user_id" class="deck__top" :style="cardStyle">
@@ -296,9 +322,16 @@ async function decide(kind: ReactionKind) {
         <WireCubes class="deck__cubes" />
         <p class="empty__title">Анкеты закончились</p>
         <p class="hint">
-          {{ filtersActive ? 'Попробуй ослабить фильтры.' : 'Загляни позже — пропущенные анкеты вернутся через пару дней.' }}
+          {{
+            filtersActive
+              ? 'Попробуй ослабить фильтры.'
+              : filters.mode
+                ? 'В этом режиме анкеты закончились — посмотри всех.'
+                : 'Загляни позже — пропущенные анкеты вернутся через пару дней.'
+          }}
         </p>
         <button v-if="filtersActive" class="btn btn-ghost" type="button" @click="resetFilters">Сбросить фильтры</button>
+        <button v-else-if="filters.mode" class="btn btn-ghost" type="button" @click="setMode(undefined)">Показать всех</button>
       </div>
     </section>
 
@@ -364,6 +397,16 @@ async function decide(kind: ReactionKind) {
 .people__tools {
   display: flex;
   gap: 8px;
+}
+
+.modes {
+  flex: none;
+  margin-bottom: 10px;
+}
+
+.modes .chip {
+  padding: 6px 12px;
+  font-size: 14px;
 }
 
 /* «N человек лайкнули тебя» — над анкетами, светится, пока есть кому ответить */

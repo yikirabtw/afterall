@@ -339,3 +339,44 @@ async def test_feed_shows_faceit(client, make_player, world, session_maker):
 
     [person] = await feed(client, me)
     assert person["games"][0]["faceit_elo"] == 1800
+
+
+# --- Кого ищу ---
+
+
+def test_mode_weights_sum_to_100():
+    from app.domain.people import WEIGHTS
+
+    for mode, w in WEIGHTS.items():
+        total = w["games_max"] + w["main"] + w["rank"] + w["style"] + w["looking"] + w["language"] + w["mic"]
+        assert total == 100, mode
+
+
+def test_play_mode_values_rank_chat_mode_values_character():
+    names = {1: "Dota 2"}
+    me = traits(looking_for=LookingFor.BOTH)
+    gamer = traits(games={1: 3}, play_style=PlayStyle.TRYHARD, looking_for=LookingFor.GAMES)
+    talker = traits(games={}, main_game_id=None, looking_for=LookingFor.BOTH)
+
+    assert compatibility(me, gamer, names, "play").score > compatibility(me, talker, names, "play").score
+    assert compatibility(me, talker, names, "chat").score > compatibility(me, gamer, names, "chat").score
+    # В «Поболтать» первая причина — про характер, а не про игры
+    assert compatibility(me, talker, names, "chat").reasons[0] == "Один стиль — чилл"
+
+
+async def test_feed_modes_filter_people(client, make_player, world):
+    me = await make_player(games={"dota": "guardian"}, looking_for=LookingFor.BOTH)
+    gamer = await make_player(games={"dota": "crusader"}, looking_for=LookingFor.GAMES)
+    other_game = await make_player(games={"cs2": None}, looking_for=LookingFor.GAMES)
+    talker = await make_player(games={"cs2": None}, looking_for=LookingFor.HANGOUT)
+
+    async def ids(mode):
+        people = (await client.get("/api/people", params={"mode": mode, "limit": 30}, headers=me.headers)).json()
+        return {p["user_id"] for p in people}
+
+    assert await ids("play") == {gamer.id}  # общая игра и ищет игры
+    assert await ids("chat") == {talker.id}  # ищет общение
+    assert await ids("friends") == {gamer.id, other_game.id, talker.id}
+    response = await client.get("/api/people", params={"mode": "party"}, headers=me.headers)
+    assert response.status_code == 422
+

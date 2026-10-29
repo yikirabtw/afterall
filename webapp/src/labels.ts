@@ -1,6 +1,6 @@
 // Подписи для значений из API — в одном месте, чтобы тексты не расползались по экранам
 
-import type { AgeGroup, LobbyStatus, LookingFor, MemberStatus, PlayStyle, ReportReason } from './api/types'
+import type { AgeGroup, FeedMode, LobbyStatus, LookingFor, MemberStatus, PlayStyle, ReportReason } from './api/types'
 
 export const PLAY_STYLES: { value: PlayStyle; label: string }[] = [
   { value: 'chill', label: 'Чилл' },
@@ -51,4 +51,12 @@ export const REPORT_REASONS: { value: ReportReason; label: string }[] = [
   { value: 'spam', label: 'Спам или реклама' },
   { value: 'fake_profile', label: 'Фейк или чужие фото' },
   { value: 'other', label: 'Другое' },
+]
+
+// Лента «Кого ищу»: режим задаёт, кого показывать и что важнее в «Совпадении»
+export const FEED_MODES: { value: FeedMode | undefined; label: string }[] = [
+  { value: undefined, label: 'Все' },
+  { value: 'play', label: 'Побегать' },
+  { value: 'chat', label: 'Поболтать' },
+  { value: 'friends', label: 'Друзья' }, // «друзья надолго» — не влезает в телефон
 ]
