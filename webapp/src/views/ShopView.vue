@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import { api } from '../api/client'
 import { errorMessage } from '../api/errors'
-import type { BoostStatus } from '../api/types'
+import type { BoostStatus, PaymentRecord, ShopInfo } from '../api/types'
 import CosmeticPreview from '../components/CosmeticPreview.vue'
 import { formatDate, formatMessageTime } from '../format'
 import { router } from '../router'
@@ -19,9 +19,9 @@ import {
   type Cosmetic,
   type CosmeticKind,
 } from '../shop'
-import { session } from '../stores/session'
+import { session, setMe } from '../stores/session'
 import { lobbiesTab, shopTab } from '../stores/ui'
-import { haptic } from '../telegram'
+import { confirmAction, haptic, openInvoice } from '../telegram'
 
 // Магазин — пока витрина (решение пользователя): всё с ценами, но покупки «Скоро».
 // Оплату звёздами подключим вместе с самими функциями подписки — брать деньги за то, чего нет, нечестно
@@ -54,6 +54,102 @@ function withDiscount(price: number): number {
 function soon() {
   haptic.select()
 }
+
+// --- Покупки звёздами: цены и «уже есть» — с сервера; пока оплата выключена (PAYMENTS_ENABLED) — «Скоро» ---
+
+const PAID_REFRESH_MS = [1500, 4000] // бот выдаёт купленное через пару секунд после оплаты — подтягиваем дважды
+
+const shopInfo = ref<ShopInfo | null>(null)
+const buying = ref<string | null>(null)
+const buyNotice = ref('')
+const buyError = ref('')
+
+const payments = computed(() => shopInfo.value?.payments_enabled ?? false)
+
+async function loadShop() {
+  try {
+    shopInfo.value = await api.shop()
+  } catch {
+    // без цен с сервера витрина показывает свои
+  }
+}
+
+function product(id: string) {
+  return shopInfo.value?.products.find((item) => item.id === id)
+}
+
+function priceOf(id: string, fallback: number): number {
+  return product(id)?.price ?? fallback
+}
+
+async function refreshAfterPaid() {
+  for (const delay of PAID_REFRESH_MS) {
+    await new Promise((resolve) => setTimeout(resolve, delay))
+    setMe(await api.me())
+    await loadShop()
+    if (boosts.value) await loadBoosts()
+  }
+}
+
+async function buy(id: string) {
+  if (!payments.value) {
+    soon()
+    return
+  }
+  if (buying.value) return
+  buying.value = id
+  buyError.value = ''
+  buyNotice.value = ''
+  haptic.tap()
+  try {
+    const { url } = await api.invoice(id)
+    const status = await openInvoice(url)
+    if (status === 'paid') {
+      haptic.success()
+      buyNotice.value = 'Оплачено — сейчас появится в приложении.'
+      picked.value = null
+      void refreshAfterPaid()
+    } else if (status === 'unsupported') {
+      buyError.value = 'Оплатить можно только в приложении внутри Telegram.'
+    } else if (status === 'failed') {
+      buyError.value = 'Оплата не прошла. Звёзды не списаны — попробуй ещё раз.'
+    }
+  } catch (e) {
+    buyError.value = errorMessage(e)
+    haptic.error()
+  } finally {
+    buying.value = null
+  }
+}
+
+async function cancelRenewal() {
+  if (!(await confirmAction('Отменить продление? Подписка останется до конца оплаченного месяца.'))) return
+  try {
+    await api.cancelSubscription()
+    buyNotice.value = 'Продление отменено. Подписка действует до конца оплаченного месяца.'
+    haptic.success()
+  } catch (e) {
+    buyError.value = errorMessage(e)
+  }
+}
+
+// История покупок — по запросу
+const history = ref<PaymentRecord[] | null>(null)
+const historyOpen = ref(false)
+
+async function toggleHistory() {
+  haptic.select()
+  historyOpen.value = !historyOpen.value
+  if (historyOpen.value && history.value === null) {
+    try {
+      history.value = await api.payments()
+    } catch (e) {
+      buyError.value = errorMessage(e)
+    }
+  }
+}
+
+onMounted(loadShop)
 
 // --- Бусты: бесплатные по подписке тратятся здесь же (анкета) или на экране своей пати ---
 
@@ -129,18 +225,28 @@ function openMyLobbies() {
         <b v-if="myPlan.plan === 'free'">Бесплатный</b>
         <b v-else>{{ myPlan.plan === 'plus' ? 'Plus' : 'Premium' }} · до {{ formatDate(myPlan.until!) }}</b>
       </p>
+      <p v-if="buyNotice" class="hint buy-notice" role="status">{{ buyNotice }}</p>
+      <p v-if="buyError" class="error-text">{{ buyError }}</p>
       <article v-for="plan in PLANS" :key="plan.id" class="card card--lit plan" :class="`plan--${plan.id}`">
         <header class="plan__head">
           <span class="plan__name">{{ plan.name }}</span>
-          <span class="plan__price"><b>{{ plan.price }}</b> ⭐<small>/ месяц</small></span>
+          <span class="plan__price"><b>{{ priceOf(plan.id, plan.price) }}</b> ⭐<small>/ месяц</small></span>
         </header>
         <p class="hint plan__tagline">{{ plan.tagline }}</p>
         <ul class="perks">
           <li v-for="perk in plan.perks" :key="perk">{{ perk }}</li>
         </ul>
         <p v-if="myPlan.plan === plan.id" class="plan__active">Активен до {{ formatDate(myPlan.until!) }}</p>
-        <button v-else class="btn btn-outline plan__buy" type="button" aria-disabled="true" @click="soon">
-          Оформить {{ plan.name }} — скоро
+        <button
+          v-else
+          class="btn plan__buy"
+          :class="payments ? 'btn-primary plan__buy--live' : 'btn-outline'"
+          type="button"
+          :aria-disabled="!payments"
+          :disabled="buying === plan.id"
+          @click="buy(plan.id)"
+        >
+          {{ payments ? `Оформить ${plan.name} — ${priceOf(plan.id, plan.price)} ⭐ в месяц` : `Оформить ${plan.name} — скоро` }}
         </button>
       </article>
 
@@ -167,6 +273,34 @@ function openMyLobbies() {
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <section v-if="shopInfo?.spending_limit" class="card honest">
+        <h2 class="honest__title">Лимит трат</h2>
+        <p class="hint">
+          Тем, кому меньше 18, — не больше {{ shopInfo.spending_limit }} ⭐ за 30 дней. Потрачено: {{ shopInfo.spent }} ⭐.
+        </p>
+      </section>
+
+      <div class="shop-links">
+        <button class="compare-toggle" type="button" :aria-expanded="historyOpen" @click="toggleHistory">
+          История покупок
+          <span class="compare-toggle__arrow" :class="{ 'compare-toggle__arrow--up': historyOpen }" aria-hidden="true">›</span>
+        </button>
+        <button v-if="payments && myPlan.plan !== 'free'" class="compare-toggle" type="button" @click="cancelRenewal">
+          Отменить продление
+        </button>
+      </div>
+      <div v-if="historyOpen" class="card history">
+        <p v-if="history && !history.length" class="hint">Покупок пока не было.</p>
+        <p v-for="record in history ?? []" :key="record.id" class="history__row">
+          <span>
+            {{ record.title }}<span v-if="record.is_recurring" class="hint"> · продление</span>
+            <span v-if="record.refunded" class="hint"> · возврат</span>
+          </span>
+          <span class="history__stars">{{ record.stars }} ⭐</span>
+          <span class="hint history__date">{{ formatDate(record.created_at) }}</span>
+        </p>
       </div>
 
       <section class="card honest">
@@ -219,8 +353,16 @@ function openMyLobbies() {
           <b class="boost__name">{{ boost.name }}</b>
           <p class="hint boost__text">{{ boost.description }}</p>
         </div>
-        <button class="price" type="button" aria-disabled="true" :aria-label="`${boost.name}: ${boost.price} звёзд, скоро`" @click="soon">
-          {{ boost.price }} ⭐
+        <button
+          class="price"
+          :class="{ 'price--live': payments }"
+          type="button"
+          :aria-disabled="!payments"
+          :disabled="buying === boost.id"
+          :aria-label="`${boost.name}: ${priceOf(boost.id, boost.price)} звёзд${payments ? '' : ', скоро'}`"
+          @click="buy(boost.id)"
+        >
+          {{ priceOf(boost.id, boost.price) }} ⭐
         </button>
       </article>
 
@@ -263,8 +405,10 @@ function openMyLobbies() {
         <button v-for="item in items" :key="item.id" class="tile" type="button" @click="pick(item)">
           <CosmeticPreview :item="item" />
           <span class="tile__name">{{ item.name }}</span>
-          <span class="tile__price" :class="{ 'tile__price--earn': item.price === null }">
-            {{ item.price === null ? 'За активность' : `${item.price} ⭐` }}
+          <span class="tile__price" :class="{ 'tile__price--earn': item.price === null || product(item.id)?.owned }">
+            {{
+              item.price === null ? 'За активность' : product(item.id)?.owned ? 'Есть' : `${priceOf(item.id, item.price)} ⭐`
+            }}
           </span>
         </button>
       </div>
@@ -286,9 +430,18 @@ function openMyLobbies() {
                 <b>{{ picked.price }} ⭐</b>
                 <span class="hint">с подпиской — {{ withDiscount(picked.price) }} ⭐</span>
               </p>
-              <button v-if="picked.price !== null" class="btn btn-primary" type="button" aria-disabled="true" @click="soon">
-                Купить — скоро
+              <p v-if="picked.price !== null && product(picked.id)?.owned" class="item-earn">Уже у тебя</p>
+              <button
+                v-else-if="picked.price !== null"
+                class="btn btn-primary"
+                type="button"
+                :aria-disabled="!payments"
+                :disabled="buying === picked.id"
+                @click="buy(picked.id)"
+              >
+                {{ payments ? `Купить за ${priceOf(picked.id, picked.price)} ⭐` : 'Купить — скоро' }}
               </button>
+              <p v-if="buyError" class="error-text">{{ buyError }}</p>
             </div>
           </section>
         </div>
@@ -325,6 +478,52 @@ function openMyLobbies() {
   border-radius: 50%;
   background: var(--warn);
   box-shadow: 0 0 8px var(--warn);
+}
+
+/* --- Покупки --- */
+
+.buy-notice {
+  margin: 0;
+  color: var(--ok);
+}
+
+.plan__buy--live {
+  opacity: 1;
+}
+
+.price--live {
+  border-color: var(--lamp);
+  box-shadow: 0 0 10px rgb(var(--glow-rgb) / 0.25);
+}
+
+.shop-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 16px;
+}
+
+.history__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  margin: 0;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--line);
+  font-size: 14px;
+}
+
+.history__row:last-child {
+  border-bottom: 0;
+}
+
+.history__stars {
+  font-family: var(--font-pixel);
+}
+
+.history__date {
+  margin: 0;
+  font-size: 12px;
 }
 
 /* --- Бусты: свой остаток --- */

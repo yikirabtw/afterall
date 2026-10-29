@@ -43,7 +43,13 @@ async def plan_of(session: AsyncSession, user_id: int, now: datetime) -> tuple[P
 
 
 async def grant(
-    session: AsyncSession, user_id: int, plan: PlanKind, days: int, granted_by_id: int | None, now: datetime
+    session: AsyncSession,
+    user_id: int,
+    plan: PlanKind,
+    days: int,
+    granted_by_id: int | None,
+    now: datetime,
+    source: SubscriptionSource = SubscriptionSource.GRANT,
 ) -> datetime:
     """Выдать подписку на days дней. Если такая уже действует — продлить её. Возвращает новый срок окончания."""
     current = await session.scalar(
@@ -61,16 +67,19 @@ async def grant(
             plan=plan,
             starts_at=now,
             ends_at=ends_at,
-            source=SubscriptionSource.GRANT,
+            source=source,
             granted_by_id=granted_by_id,
         )
     )
     return ends_at
 
 
-async def revoke(session: AsyncSession, user_id: int, now: datetime) -> int:
-    """Закончить все действующие подписки прямо сейчас. Возвращает, сколько было."""
-    active = list(await session.scalars(select(Subscription).where(Subscription.user_id == user_id, *_active(now))))
+async def revoke(session: AsyncSession, user_id: int, now: datetime, plan: PlanKind | None = None) -> int:
+    """Закончить действующие подписки (все или одного тарифа) прямо сейчас. Возвращает, сколько было."""
+    query = select(Subscription).where(Subscription.user_id == user_id, *_active(now))
+    if plan is not None:
+        query = query.where(Subscription.plan == plan)
+    active = list(await session.scalars(query))
     for subscription in active:
         subscription.ends_at = now
     return len(active)

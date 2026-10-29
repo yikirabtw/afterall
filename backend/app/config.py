@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     # Собранное мини-приложение (webapp/dist). Если папка есть — API отдаёт его по адресу /
     static_dir: Path | None = None
 
+    # Оплата звёздами Telegram. Выключена, пока пользователь сам не решит включить (PAYMENTS_ENABLED=true)
+    payments_enabled: bool = False
+
     # --- Тестовая копия (ветка dev на Render) — только для скриптов на компьютере ---
     # Токен ТЕСТОВОГО бота: им скрипт staging_bots подписывает вход ботов в копию. Основа такую подпись не примет
     staging_bot_token: SecretStr | None = None

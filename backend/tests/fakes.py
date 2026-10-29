@@ -2,7 +2,9 @@ from collections.abc import AsyncGenerator
 from typing import Any
 
 from aiogram.client.session.base import BaseSession
-from aiogram.methods import SendMessage, TelegramMethod
+from aiogram.methods import CreateInvoiceLink, SendMessage, TelegramMethod
+
+INVOICE_URL = "https://t.me/$test-invoice"
 
 
 class RecordingSession(BaseSession):
@@ -14,6 +16,8 @@ class RecordingSession(BaseSession):
 
     async def make_request(self, bot, method, timeout=None):
         self.requests.append(method)
+        if isinstance(method, CreateInvoiceLink):
+            return INVOICE_URL
         return True
 
     async def stream_content(self, *args, **kwargs) -> AsyncGenerator[bytes, None]:

@@ -46,7 +46,10 @@ class Allowance:
     today: int  # сколько бустов уже сегодня (лимит DAILY_MAX)
 
 
-async def allowance(session: AsyncSession, user_id: int, plan: Plan, now: datetime) -> Allowance:
+async def allowance(
+    session: AsyncSession, user_id: int, plan: Plan, now: datetime, kind: BoostKind | None = None
+) -> Allowance:
+    """Остаток бустов. kind — сколько купленных именно этого вида; без него — всех видов вместе."""
     weekly_used = await session.scalar(
         select(func.count(Boost.id)).where(
             Boost.user_id == user_id, Boost.source == BoostSource.WEEKLY, Boost.created_at > now - WEEK
@@ -55,11 +58,14 @@ async def allowance(session: AsyncSession, user_id: int, plan: Plan, now: dateti
     today = await session.scalar(
         select(func.count(Boost.id)).where(Boost.user_id == user_id, Boost.created_at > now - DAY)
     )
-    credits = await session.get(BoostCredits, user_id)
+    credits_query = select(func.coalesce(func.sum(BoostCredits.amount), 0)).where(BoostCredits.user_id == user_id)
+    if kind is not None:
+        credits_query = credits_query.where(BoostCredits.kind == kind)
+    credits = await session.scalar(credits_query)
     total = WEEKLY_FREE[plan]
     return Allowance(
         weekly_total=total,
         weekly_left=max(0, total - weekly_used),
-        credits=credits.amount if credits else 0,
+        credits=credits,
         today=today,
     )

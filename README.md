@@ -158,6 +158,14 @@ API работает на http://127.0.0.1:8000, документация с к�
 - Контакты — только в мэтче: `discord_tag`, если указан; `username` (ник в Telegram) — только если человек
   включил «Показывать мой Telegram» (`show_telegram` в анкете). Иначе общаются в чате приложения.
 
+### Оплата звёздами (ветка dev, выключена)
+Включается переменной `PAYMENTS_ENABLED=true` в панели Render — только когда решите продавать. Цены — на сервере
+(`app/domain/catalog.py`). `GET /api/shop` — цены для меня, что уже есть, лимит трат (13–17 лет);
+`POST /api/shop/invoice {"product_id"}` → `{"url"}` для `Telegram.WebApp.openInvoice`; выдачу делает бот после
+оплаты. `GET /api/shop/payments` — история, `POST /api/shop/subscription/cancel` — отменить продление.
+Возврат — админ пишет боту `/refund <telegram_charge_id>` (звёзды возвращаются, купленное забирается).
+Звёзды копятся на балансе бота (@BotFather → бот → Balance); вывод — по правилам Telegram.
+
 ### Наборы настроек ленты (ветка dev, Premium)
 `PUT /api/me/feed-presets` `{"presets": [{"name", "mode", "game_id", "need_mic", "play_style", "language"}]}` —
 до 5, заменяются целиком; сохранить — Premium (иначе 403 `presets_need_premium`), очистить — всем.

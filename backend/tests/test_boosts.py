@@ -74,7 +74,7 @@ async def test_daily_limit_and_credits(client, make_player, create_lobby, set_pl
     # Сутки прошли, недельные кончились — тратится купленный
     async with session_maker.begin() as session:
         await session.execute(update(Boost).values(created_at=utcnow() - timedelta(days=2), ends_at=utcnow()))
-        session.add(BoostCredits(user_id=me.id, amount=1))
+        session.add(BoostCredits(user_id=me.id, kind="profile", amount=1))
     status = await boost(client, me, kind="profile")
     assert (status["weekly_left"], status["credits"]) == (0, 0)
     assert status["profile_until"] is not None

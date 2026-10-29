@@ -1,5 +1,5 @@
 # Импорт всех моделей в одном месте — чтобы Alembic видел все таблицы
-from app.db.models.billing import Boost, BoostCredits, Subscription
+from app.db.models.billing import Boost, BoostCredits, Payment, Subscription, UserItem
 from app.db.models.chat import Chat, ChatMessage, ChatRead
 from app.db.models.game import Game, GameRank, GameRole, UserGame, user_game_roles
 from app.db.models.lobby import Lobby, LobbyMember
@@ -20,6 +20,7 @@ __all__ = [
     "Lobby",
     "LobbyMember",
     "Match",
+    "Payment",
     "ModerationAction",
     "Profile",
     "Reaction",
@@ -30,6 +31,7 @@ __all__ = [
     "User",
     "UserAvailability",
     "UserGame",
+    "UserItem",
     "UserPhoto",
     "user_game_roles",
 ]

@@ -20,6 +20,7 @@ interface TelegramWebApp {
   openTelegramLink(url: string): void
   openLink(url: string): void
   showConfirm(message: string, callback: (confirmed: boolean) => void): void
+  openInvoice(url: string, callback: (status: 'paid' | 'cancelled' | 'failed' | 'pending') => void): void
   BackButton: {
     show(): void
     hide(): void
@@ -121,4 +122,10 @@ export function useBackButton(onBack: () => void, visible: Ref<boolean>): void {
     button.offClick(onBack)
     button.hide()
   })
+}
+
+/** Окно оплаты звёздами Telegram по ссылке на счёт. Вне Telegram оплатить нельзя — сразу 'unsupported' */
+export function openInvoice(url: string): Promise<'paid' | 'cancelled' | 'failed' | 'pending' | 'unsupported'> {
+  if (!supports('6.1')) return Promise.resolve('unsupported')
+  return new Promise((resolve) => webApp!.openInvoice(url, resolve))
 }

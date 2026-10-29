@@ -20,11 +20,13 @@ import type {
   Me,
   MemberDecision,
   PeopleParams,
+  PaymentRecord,
   Person,
   ProfileInput,
   ReactionKind,
   ReportInput,
   RewindResult,
+  ShopInfo,
   UserGameInput,
 } from './types'
 
@@ -156,6 +158,11 @@ export const api = {
   apply: (id: number, note: string | null, invite?: string) =>
     request<LobbyDetail>('POST', `/lobbies/${id}/apply${inviteQuery(invite)}`, { note }),
   meta: () => request<Meta>('GET', '/meta'),
+  // Магазин: цены с сервера, счёт на оплату звёздами, история, отмена продления
+  shop: () => request<ShopInfo>('GET', '/shop'),
+  invoice: (productId: string) => request<{ url: string }>('POST', '/shop/invoice', { product_id: productId }),
+  payments: () => request<PaymentRecord[]>('GET', '/shop/payments'),
+  cancelSubscription: () => request<void>('POST', '/shop/subscription/cancel'),
   // Наборы настроек ленты (Premium) — заменяются целиком
   saveFeedPresets: (presets: FeedPreset[]) => request<Me>('PUT', '/me/feed-presets', { presets }),
   leave: (id: number) => request<LobbyDetail>('POST', `/lobbies/${id}/leave`),

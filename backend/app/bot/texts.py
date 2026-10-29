@@ -184,3 +184,18 @@ def invite_open(lobby_title: str) -> str:
 
 INVITE_EXPIRED = "Приглашение устарело — пати уже нет. Попроси новую ссылку."
 
+
+# --- Оплата звёздами (bot/handlers/payments.py) ---
+
+PAYMENT_REJECTED = "Не получилось оформить — цена или товар изменились. Открой магазин и попробуй ещё раз."
+
+
+def payment_thanks(title: str) -> str:
+    return f"⭐ Спасибо! «{escape(title)}» уже в приложении."
+
+
+REFUND_USAGE = "/refund <ID платежа> — вернуть звёзды. ID — в таблице payments (telegram_charge_id)."
+REFUND_NOT_FOUND = "Такого платежа нет."
+REFUND_ALREADY = "По этому платежу уже был возврат."
+REFUND_DONE = "Готово: звёзды вернули, купленное забрали."
+

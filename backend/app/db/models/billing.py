@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index
+from sqlalchemy import DateTime, ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, BigIntPK, CreatedAtMixin, str_enum
@@ -46,10 +46,37 @@ class Boost(CreatedAtMixin, Base):
 
 
 class BoostCredits(Base):
-    """Купленные бусты, ещё не потраченные (пополняется оплатой звёздами)."""
+    """Купленные бусты, ещё не потраченные (пополняет оплата звёздами). По видам: подъём пати дешевле,
+    чем «анкета первой», и тратится только на пати."""
 
     __tablename__ = "boost_credits"
 
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    kind: Mapped[BoostKind] = mapped_column(str_enum(BoostKind), primary_key=True)
     amount: Mapped[int] = mapped_column(default=0)
+
+
+class Payment(CreatedAtMixin, Base):
+    """Оплата звёздами Telegram — история покупок, основание для возврата."""
+
+    __tablename__ = "payments"
+    __table_args__ = (Index("ix_payments_user_time", "user_id", "created_at"),)
+
+    id: Mapped[int] = mapped_column(BigIntPK, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    product_id: Mapped[str] = mapped_column(String(32))
+    stars: Mapped[int]
+    telegram_charge_id: Mapped[str] = mapped_column(String(128), unique=True)
+    is_recurring: Mapped[bool] = mapped_column(default=False)  # продление подписки, а не первая оплата
+    refunded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class UserItem(Base):
+    """Купленная или заработанная вещь из косметики (рамка, фон, значок, сцена мэтча, тема)."""
+
+    __tablename__ = "user_items"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    item_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    acquired_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 

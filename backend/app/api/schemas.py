@@ -509,6 +509,39 @@ class BoostStatusOut(BaseModel):
     lobbies: dict[int, UtcDatetime]  # мои поднятые пати → до какого момента
 
 
+class ShopProductOut(BaseModel):
+    id: str
+    kind: str  # plan / boosts / cosmetic
+    stars: int  # обычная цена
+    price: int  # цена для меня (подписчикам косметика со скидкой)
+    owned: bool  # вещь уже есть
+
+
+class ShopOut(BaseModel):
+    payments_enabled: bool  # выключено — витрина «Скоро»
+    products: list[ShopProductOut]
+    spending_limit: int | None  # лимит трат за 30 дней (13–17 лет); None — без лимита
+    spent: int  # потрачено за 30 дней
+
+
+class InvoiceIn(BaseModel):
+    product_id: str
+
+
+class InvoiceOut(BaseModel):
+    url: str  # открыть через Telegram.WebApp.openInvoice
+
+
+class PaymentOut(BaseModel):
+    id: int
+    product_id: str
+    title: str
+    stars: int
+    is_recurring: bool
+    refunded: bool
+    created_at: UtcDatetime
+
+
 class RewindOut(BaseModel):
     person: PersonOut  # вернулась первой в ленту
     left: int | None  # сколько возвратов ещё осталось за сутки; None — без лимита

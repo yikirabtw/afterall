@@ -55,14 +55,14 @@ async def use_boost(body: BoostIn, user: OnboardedUser, session: SessionDep) -> 
         raise HTTPException(status.HTTP_409_CONFLICT, detail="boost_already_active")
 
     plan, _ = await plan_of(session, user.id, now)
-    left = await allowance(session, user.id, plan, now)
+    left = await allowance(session, user.id, plan, now, body.kind)
     if left.today >= DAILY_MAX:
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, detail="boosts_daily_limit")
     if left.weekly_left > 0:
         source = BoostSource.WEEKLY
     elif left.credits > 0:
         source = BoostSource.CREDIT
-        credits = await session.get(BoostCredits, user.id)
+        credits = await session.get(BoostCredits, (user.id, body.kind))
         credits.amount -= 1
     else:
         raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, detail="boost_needs_purchase")

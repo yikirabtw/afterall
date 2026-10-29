@@ -364,3 +364,30 @@ export interface FeedPreset {
   play_style: PlayStyle | null
   language: string | null
 }
+
+// --- Магазин и оплата звёздами ---
+
+export interface ShopProduct {
+  id: string // как в src/shop.ts
+  kind: 'plan' | 'boosts' | 'cosmetic'
+  stars: number // обычная цена
+  price: number // цена для меня (подписчикам косметика со скидкой)
+  owned: boolean
+}
+
+export interface ShopInfo {
+  payments_enabled: boolean // выключено — витрина «Скоро»
+  products: ShopProduct[]
+  spending_limit: number | null // лимит трат за 30 дней (13–17 лет)
+  spent: number
+}
+
+export interface PaymentRecord {
+  id: number
+  product_id: string
+  title: string
+  stars: number
+  is_recurring: boolean
+  refunded: boolean
+  created_at: string
+}

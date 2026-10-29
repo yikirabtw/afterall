@@ -14,7 +14,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.api.routes import boosts, chats, games, health, lobbies, me, onboarding, people, photos, safety, telegram
+from app.api.routes import (
+    boosts,
+    chats,
+    games,
+    health,
+    lobbies,
+    me,
+    onboarding,
+    people,
+    photos,
+    safety,
+    shop,
+    telegram,
+)
 from app.bot.dispatcher import build_dispatcher
 from app.bot.setup import setup_bot
 from app.config import settings
@@ -42,6 +55,7 @@ def create_app(
     static_dir: Path | None = None,
     webhook: TelegramWebhook | None = None,
     notifier: Notifier | None = None,
+    payments_enabled: bool = False,
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -64,6 +78,7 @@ def create_app(
     app.state.init_data_max_age = init_data_max_age
     app.state.webhook = webhook
     app.state.bot_username = None  # узнаём у Telegram при старте (только на сервере) — для ссылок-приглашений
+    app.state.payments_enabled = payments_enabled
     # Уведомления шлёт тот же бот, что принимает вебхук; без вебхука (локально) — только в лог
     app.state.notifier = notifier or Notifier(webhook.bot if webhook else None, webhook.webapp_url if webhook else None)
     # Ключ подписи ссылок на фото — выводим из токена бота, чтобы не заводить ещё один секрет
@@ -75,7 +90,7 @@ def create_app(
         allow_methods=["*"],
         allow_headers=["Authorization", "Content-Type"],
     )
-    for module in (health, me, onboarding, photos, people, games, lobbies, chats, safety, boosts):
+    for module in (health, me, onboarding, photos, people, games, lobbies, chats, safety, boosts, shop):
         app.include_router(module.router, prefix="/api")
     app.include_router(telegram.router)
     if static_dir is not None:
@@ -127,4 +142,5 @@ def create_app_from_settings() -> FastAPI:
         static_dir=static_dir,
         webhook=webhook,
         notifier=Notifier(webhook.bot if webhook else None, webapp_url, admin_ids),
+        payments_enabled=settings.payments_enabled,
     )
