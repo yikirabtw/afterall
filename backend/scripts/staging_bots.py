@@ -5,11 +5,12 @@
 завести ботов среди живых людей. Локальный API (--base http://127.0.0.1:8000) — токеном из BOT_TOKEN.
 
 Боты — со случайными именами, городами, играми, рангами, одним фото (бесплатный тариф).
-Часть из них заранее ставит ♥ человеку с именем из --like: лайкнешь в ответ — будет мэтч и чат.
+Часть из них заранее ставит ♥ человеку с именем из --like (или всем живым людям в копии: --like "*"):
+лайкнешь в ответ — будет мэтч и чат.
 Часть создаёт пати (живут 3 часа — потом запустите ещё раз с --lobbies-only).
 
 Из папки backend:
-  python -m scripts.staging_bots create [--count 40] [--ages 15-22] [--like ИМЯ] [--likes 0.4]
+  python -m scripts.staging_bots create [--count 40] [--ages 18-30] [--like ИМЯ|*] [--likes 0.4]
                                         [--lobbies 0.3] [--photos ПАПКА_С_JPG] [--start 0] [--base URL]
   python -m scripts.staging_bots lobbies [--count 40] [--lobbies 0.3]   свежие пати от тех же ботов
   python -m scripts.staging_bots hide    [--count 40]                   убрать ботов из ленты
@@ -88,7 +89,8 @@ def create(base: str, count: int, start: int, ages: tuple[int, int], like: str |
            lobbies: float, photos: list[Path]) -> None:
     api = f"{base.rstrip('/')}/api"
     key = signing_key(base)
-    target_id = None
+    bot_ids: set[int] = set()
+    targets: set[int] = set()  # кому ставить ♥: по имени или все, кто не бот
     with httpx.Client(timeout=90) as client:
         client.get(f"{api}/health").raise_for_status()  # бесплатный сервер может спать — будим
         catalog = None
@@ -96,7 +98,7 @@ def create(base: str, count: int, start: int, ages: tuple[int, int], like: str |
             b = bot(n, ages)
             rng = b["rng"]
             h = headers(b["telegram_id"], b["name"], b["username"], key)
-            client.get(f"{api}/me", headers=h).raise_for_status()
+            bot_ids.add(client.get(f"{api}/me", headers=h).raise_for_status().json()["id"])
             client.put(f"{api}/me/birth-date", headers=h, json={"birth_date": b["birth"].isoformat()})  # 409 — уже есть
             client.put(f"{api}/me/profile", headers=h, json=b["profile"]).raise_for_status()
             if catalog is None:
@@ -115,19 +117,20 @@ def create(base: str, count: int, start: int, ages: tuple[int, int], like: str |
                 client.post(f"{api}/me/photos", headers=h, files={"file": ("p.jpg", data, "image/jpeg")})
 
             if like and rng.random() < likes:
-                if target_id is None:
-                    feed = client.get(f"{api}/people", headers=h, params={"limit": 30}).json()
-                    found = next((p for p in feed if p["display_name"].lower() == like.lower()), None)
-                    target_id = found["user_id"] if found else None
-                if target_id is not None:
+                feed = client.get(f"{api}/people", headers=h, params={"limit": 30}).json()
+                for person in feed:
+                    human = person["user_id"] not in bot_ids
+                    if human and (like == "*" or person["display_name"].lower() == like.lower()):
+                        targets.add(person["user_id"])
+                for target_id in targets:  # 404 — этому боту человек не виден по возрасту, пропускаем
                     client.post(f"{api}/people/{target_id}/react", headers=h, json={"kind": "like"})
 
             if rng.random() < lobbies:
                 make_lobby(client, api, h, rng, games)
             print(f"{n + 1 - start}/{count}: {b['name']}, {b['age']}")
-    if like and target_id is None:
+    if like and not targets:
         print(f"«{like}» не нашёлся в ленте ботов — ♥ не поставлены (имя как в анкете? возраст подходит?)")
-    print("Готово.")
+    print(f"Готово. ♥ получили: {len(targets)} чел.")
 
 
 def make_lobby(client: httpx.Client, api: str, h: dict, rng: random.Random, games: list[dict]) -> None:
@@ -177,8 +180,8 @@ def main() -> None:
     parser.add_argument("--base", default=settings.staging_url)
     parser.add_argument("--count", type=int, default=40)
     parser.add_argument("--start", type=int, default=0, help="с какого номера (добавить ещё — укажите следующий)")
-    parser.add_argument("--ages", default="15-22", help="возраст ботов «от-до»")
-    parser.add_argument("--like", help="имя из анкеты человека, которому часть ботов поставит ♥")
+    parser.add_argument("--ages", default="18-30", help="возраст ботов «от-до» (подростков видят только подростки)")
+    parser.add_argument("--like", help="имя из анкеты, кому часть ботов поставит ♥; * — всем живым людям в копии")
     parser.add_argument("--likes", type=float, default=0.4)
     parser.add_argument("--lobbies", type=float, default=0.3, help="доля ботов, которые создают пати")
     parser.add_argument("--photos", help="папка с .jpg для фото ботов (без неё — абстрактные градиенты)")
