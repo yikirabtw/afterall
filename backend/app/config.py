@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     # Собранное мини-приложение (webapp/dist). Если папка есть — API отдаёт его по адресу /
     static_dir: Path | None = None
 
+    # --- Тестовая копия (ветка dev на Render) — только для скриптов на компьютере ---
+    # Токен ТЕСТОВОГО бота: им скрипт staging_bots подписывает вход ботов в копию. Основа такую подпись не примет
+    staging_bot_token: SecretStr | None = None
+    staging_url: str = "https://afterall-1.onrender.com"
+
     # Telegram ID админов: им приходят жалобы с кнопками бана, даже если в базе у них нет роли admin.
     # Задаётся в панели хостинга: «123456789», «1, 2» или «[1, 2]» — подойдёт любая запись
     admin_telegram_ids: Annotated[list[int], NoDecode] = []

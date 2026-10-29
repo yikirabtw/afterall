@@ -52,8 +52,9 @@
   Render выкладывает её при каждом push. Работаем в `dev` — копия; в `main` переносим только по команде пользователя.
   Для проверки в Telegram у `dev` свой тестовый бот, сервер Render и база Neon (README → «Тестовая копия»).
   Копия: **https://afterall-1.onrender.com** (Render, ветка `dev`, база Neon `afterall_dev`, свой тестовый бот —
-  его токен только в панели Render). Скрипты, которые входят токеном бота (`demo_profiles` и т. п.), к копии
-  с токеном из `backend/.env` (боевым) не подойдут.
+  его токен — в панели Render и (для скриптов) в `backend/.env` как `STAGING_BOT_TOKEN`). Боты в копию —
+  `python -m scripts.staging_bots create|lobbies|hide` (через API копии, подпись тестовым токеном — основа её
+  не примет; фото — `--photos` папка с jpg). `demo_profiles` и `dev_bots` к копии не подходят.
   Сообщения коммитов на русском — передавать через файл в `.git/` (у PowerShell 5.1 и длинных путей temp проблемы).
 - Хостинг (решение пользователя: бесплатно, пока нет потока людей и продаж подписок): Render (free, Frankfurt,
   Docker из `Dockerfile` + `render.yaml`) + Neon (free Postgres). На сервере бот — вебхук внутри API
