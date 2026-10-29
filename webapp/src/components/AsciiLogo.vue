@@ -119,6 +119,8 @@ onMounted(async () => {
 
   const width = Math.round(el.clientWidth)
   const height = Math.round(el.clientHeight)
+  // Заставка уже скрывается или ещё не разложена — рисовать не на чем (иначе размеры шрифта выходят NaN)
+  if (width < 2 || height < 2) return
   const dpr = Math.min(window.devicePixelRatio || 1, 3)
   el.width = width * dpr
   el.height = height * dpr
