@@ -15,5 +15,9 @@ PHOTOS_MAX = 3  # больше трёх фото нет ни у кого
 PHOTO_LIMITS: dict[Plan, int] = {"free": 1, "plus": 3, "premium": 3}
 ACTIVE_LOBBY_LIMITS: dict[Plan, int] = {"free": 2, "plus": 5, "premium": 10}
 
+# «Кто лайкнул» — списком только с подпиской; бесплатно — одно число
+LIKES_LIST_PLANS: tuple[Plan, ...] = ("plus", "premium")
+LIKES_LIST_MAX = 100
+
 GRANT_DEFAULT = timedelta(days=30)  # срок подписки, выданной админом без указания дней
 GRANT_MAX_DAYS = 3650

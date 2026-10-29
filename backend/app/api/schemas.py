@@ -446,6 +446,13 @@ class MatchOut(BaseModel):
     plan: Plan = "free"
 
 
+class LikesOut(BaseModel):
+    """Кто поставил мне ♥, а я ещё не ответил. Число видят все, самих людей — только с Plus и Premium."""
+
+    count: int
+    people: list[PersonOut] | None  # None — бесплатный тариф: сервер не отдаёт ни имён, ни фото
+
+
 class ReactOut(BaseModel):
     match: MatchOut | None  # не None — лайк оказался взаимным
 

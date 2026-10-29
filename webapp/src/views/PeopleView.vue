@@ -8,6 +8,7 @@ import MatchOverlay from '../components/MatchOverlay.vue'
 import PeopleFilters from '../components/PeopleFilters.vue'
 import PersonCard from '../components/PersonCard.vue'
 import WireCubes from '../components/WireCubes.vue'
+import { formatPeople } from '../format'
 import { openFrom } from '../router'
 import { session, setMe } from '../stores/session'
 import { haptic } from '../telegram'
@@ -23,6 +24,7 @@ const exhausted = ref(false) // сервер больше никого не на
 const error = ref('')
 const busy = ref(false)
 const matchesCount = ref(0)
+const likesCount = ref(0) // кто лайкнул меня, а я ещё не ответил — плашка над анкетами
 const newMatch = ref<Match | null>(null)
 
 const filtersOpen = ref(false)
@@ -99,6 +101,14 @@ async function resetFilters() {
   applyFilters({})
 }
 
+async function refreshLikes() {
+  try {
+    likesCount.value = (await api.likes()).count
+  } catch {
+    // счётчик — не главное, лента работает и без него
+  }
+}
+
 onMounted(async () => {
   await loadMore()
   try {
@@ -106,7 +116,14 @@ onMounted(async () => {
   } catch {
     // счётчик мэтчей — не главное, лента работает и без него
   }
+  void refreshLikes()
 })
+
+// «Тебя лайкнули» вырастает из плашки
+function openLikes(event: MouseEvent) {
+  haptic.tap()
+  openFrom(event.currentTarget as Element, '/likes', 'morph')
+}
 
 // --- Кнопка мэтчей: сердце «бьётся», пока мэтчи есть; новый мэтч — сердце подпрыгивает ---
 
@@ -157,6 +174,7 @@ async function decide(kind: ReactionKind) {
       haptic.success()
     }
     if (queue.value.length < 3) void loadMore()
+    if (likesCount.value > 0) void refreshLikes() // ответил кому-то из лайкнувших — число уменьшится
   } catch (e) {
     error.value = errorMessage(e)
     haptic.error()
@@ -197,6 +215,14 @@ async function decide(kind: ReactionKind) {
         </button>
       </div>
     </header>
+
+    <button v-if="likesCount > 0" class="likes-pill" type="button" @click="openLikes">
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+        <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill="currentColor" />
+      </svg>
+      <span>{{ formatPeople(likesCount) }} {{ likesCount === 1 ? 'лайкнул' : 'лайкнули' }} тебя</span>
+      <span class="likes-pill__arrow" aria-hidden="true">›</span>
+    </button>
 
     <section class="deck">
       <PersonCard v-if="next" :key="`under-${next.user_id}`" :person="next" class="deck__under" />
@@ -259,6 +285,38 @@ async function decide(kind: ReactionKind) {
 .people__tools {
   display: flex;
   gap: 8px;
+}
+
+/* «N человек лайкнули тебя» — над анкетами, светится, пока есть кому ответить */
+.likes-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  margin: 0 0 10px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: 0 0 14px rgb(var(--glow-rgb) / 0.12), var(--edge-light);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.likes-pill svg {
+  flex: none;
+  filter: drop-shadow(0 0 5px rgb(var(--glow-rgb) / 0.7));
+}
+
+.likes-pill__arrow {
+  margin-left: auto;
+  font-size: 18px;
+  color: var(--text-2);
 }
 
 /* Иконки-плитки — как в наборе виджетов */

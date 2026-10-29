@@ -103,3 +103,57 @@ async def test_plan_in_profile_and_on_cards(client, make_player, set_plan, sessi
     async with session_maker.begin() as session:
         await session.execute(update(Subscription).values(ends_at=utcnow() - timedelta(minutes=1)))
     assert (await client.get("/api/me", headers=other.headers)).json()["plan"]["plan"] == "free"
+
+
+# --- Кто лайкнул ---
+
+
+async def likes(client, player) -> dict:
+    response = await client.get("/api/people/likes", headers=player.headers)
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+async def like(client, a, b, kind: str = "like") -> dict:
+    return (await client.post(f"/api/people/{b.id}/react", json={"kind": kind}, headers=a.headers)).json()
+
+
+async def test_free_sees_only_how_many_liked(client, make_player):
+    me, fan = await make_player(), await make_player()
+    await like(client, fan, me)
+
+    assert await likes(client, me) == {"count": 1, "people": None}  # ни имён, ни фото
+
+
+async def test_subscribers_see_who_liked_newest_first(client, make_player, set_plan, session_maker):
+    me, first, second, answered, skipped, blocked = [await make_player() for _ in range(6)]
+    for fan in (first, second, answered, skipped, blocked):
+        await like(client, fan, me)
+    await like(client, me, answered)  # ответил — это уже мэтч, не «лайк мне»
+    await like(client, me, skipped, "skip")
+    await client.post(f"/api/blocks/{blocked.id}", headers=me.headers)
+    await set_plan("plus", user_id=me.id)
+
+    result = await likes(client, me)
+
+    assert result["count"] == 2
+    assert [p["user_id"] for p in result["people"]] == [second.id, first.id]
+    assert result["people"][0]["compatibility"] > 0
+
+    # Лайк в ответ из списка — сразу мэтч, и человек уходит из списка
+    assert (await like(client, me, second))["match"]["user_id"] == second.id
+    assert [p["user_id"] for p in (await likes(client, me))["people"]] == [first.id]
+
+
+async def test_likes_respect_age_rules(client, make_player, set_plan):
+    me = await make_player(age=25)
+    teen = await make_player(age=16)
+    adult = await make_player(age=19)
+    await like(client, adult, me)
+    await set_plan("premium", user_id=me.id)
+
+    # 16-летний 25-летнего не видит и лайкнуть не может; лайк от 19-летнего — есть
+    response = await client.post(f"/api/people/{me.id}/react", json={"kind": "like"}, headers=teen.headers)
+    assert response.status_code == 404
+    assert [p["user_id"] for p in (await likes(client, me))["people"]] == [adult.id]
+

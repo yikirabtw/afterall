@@ -21,6 +21,14 @@ export function formatDate(at: string): string {
   return new Date(at).toLocaleDateString('ru-RU')
 }
 
+/** «1 человек», «3 человека», «7 человек» */
+export function formatPeople(count: number): string {
+  const tens = count % 100
+  const ones = count % 10
+  const word = tens >= 12 && tens <= 14 ? 'человек' : ones >= 2 && ones <= 4 ? 'человека' : 'человек'
+  return `${count} ${word}`
+}
+
 export function formatAge(age: number): string {
   const lastTwo = age % 100
   const last = age % 10

@@ -3,6 +3,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { originOf, rememberOrigin, reveal, takeOrigin, type RevealShape } from './reveal'
 import { session } from './stores/session'
 import BlockedView from './views/BlockedView.vue'
+import LikesView from './views/LikesView.vue'
 import ChatsView from './views/ChatsView.vue'
 import ChatView from './views/ChatView.vue'
 import CreateLobbyView from './views/CreateLobbyView.vue'
@@ -39,6 +40,7 @@ export const router = createRouter({
     { path: '/create', component: CreateLobbyView },
     { path: '/lobby/:id(\\d+)', component: LobbyView, props: (route) => ({ id: Number(route.params.id) }) },
     { path: '/matches', component: MatchesView },
+    { path: '/likes', component: LikesView },
     {
       path: '/chat/:kind(direct|lobby)/:target(\\d+)',
       component: ChatView,
@@ -93,7 +95,7 @@ export function openFrom(el: Element, path: string, shape: RevealShape = 'circle
 
 // Кнопка в уведомлении бота открывает приложение сразу на нужном экране: ссылка вида …/?open=chat/direct/12
 // (её собирает сервер, services/notify.py). Берём только знакомые экраны и только при первом запуске
-const START_LINK = /^(chat\/(direct|lobby)\/\d+|lobby\/\d+|matches|feed|people|chats)$/
+const START_LINK = /^(chat\/(direct|lobby)\/\d+|lobby\/\d+|matches|likes|feed|people|chats)$/
 let startLinkUsed = false
 
 export async function openStartLink(): Promise<void> {

@@ -241,6 +241,12 @@ export interface Person {
   reasons: string[]
 }
 
+/** Кто поставил мне ♥, а я ещё не ответил. people = null — бесплатный тариф: видно только число */
+export interface LikesInfo {
+  count: number
+  people: Person[] | null
+}
+
 export interface Match {
   user_id: number
   display_name: string

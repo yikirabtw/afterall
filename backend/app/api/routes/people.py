@@ -13,16 +13,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import NotifierDep, OnboardedUser, PhotoUrl, SessionDep
-from app.api.schemas import LanguageCode, MatchOut, PersonGameOut, PersonOut, PhotoOut, ReactIn, ReactOut
+from app.api.schemas import LanguageCode, LikesOut, MatchOut, PersonGameOut, PersonOut, PhotoOut, ReactIn, ReactOut
 from app.db.enums import MatchSource, PlayStyle, ReactionKind
 from app.db.models import Game, GameRank, Match, Profile, Reaction, User, UserGame
 from app.domain.age import age_on, search_range, search_range_fits, years_ago
 from app.domain.people import CANDIDATE_POOL, SKIP_COOLDOWN, Compatibility, Traits, compatibility
-from app.domain.plans import Plan
+from app.domain.plans import LIKES_LIST_MAX, LIKES_LIST_PLANS, Plan
 from app.domain.time import utcnow
 from app.bot import texts
 from app.services.notify import Note
-from app.services.plans import plans_of
+from app.services.plans import plan_of, plans_of
 from app.services.users import ban_inactive_clause, blocked_user_ids
 
 router = APIRouter(tags=["люди"])
@@ -56,6 +56,19 @@ def _visible_people(viewer: User, profile: Profile, now) -> list[ColumnElement[b
     if end is not None:
         conditions.append(User.birth_date > years_ago(today, end + 1))
     return conditions
+
+
+def _not_answered(viewer: User, now) -> list[ColumnElement[bool]]:
+    """Кому я ещё не ответил: лайкнутые и удалённые из мэтчей — навсегда нет, пропущенные — 3 дня нет."""
+    liked = select(Reaction.to_user_id).where(
+        Reaction.from_user_id == viewer.id, Reaction.kind.in_((ReactionKind.LIKE, ReactionKind.UNMATCH))
+    )
+    skipped = select(Reaction.to_user_id).where(
+        Reaction.from_user_id == viewer.id,
+        Reaction.kind == ReactionKind.SKIP,
+        Reaction.created_at > now - SKIP_COOLDOWN,
+    )
+    return [User.id.not_in(liked), User.id.not_in(skipped)]
 
 
 async def _my_profile(session: AsyncSession, user: User, now) -> Profile:
@@ -155,19 +168,11 @@ async def people_feed(
     """Анкеты, отсортированные по «совпадению». Лайкнутые и удалённые из мэтчей не показываются,
     пропущенные — вернутся через 3 дня."""
     now = utcnow()
-    liked = select(Reaction.to_user_id).where(
-        Reaction.from_user_id == user.id, Reaction.kind.in_((ReactionKind.LIKE, ReactionKind.UNMATCH))
-    )
-    skipped = select(Reaction.to_user_id).where(
-        Reaction.from_user_id == user.id,
-        Reaction.kind == ReactionKind.SKIP,
-        Reaction.created_at > now - SKIP_COOLDOWN,
-    )
     profile = await _my_profile(session, user, now)
     query = (
         select(User)
         .join(Profile, Profile.user_id == User.id)
-        .where(*_visible_people(user, profile, now), User.id.not_in(liked), User.id.not_in(skipped))
+        .where(*_visible_people(user, profile, now), *_not_answered(user, now))
         .options(*PERSON_OPTIONS)
         .order_by(User.last_seen_at.desc().nulls_last())
         .limit(CANDIDATE_POOL)
@@ -193,6 +198,43 @@ async def people_feed(
     shown = scored[:limit]
     plans = await plans_of(session, [person.id for _, person in shown], now)
     return [_person_out(person, match, photo_url, today, plans.get(person.id, "free")) for match, person in shown]
+
+
+@router.get("/people/likes", response_model=LikesOut)
+async def who_liked_me(user: OnboardedUser, session: SessionDep, photo_url: PhotoUrl) -> LikesOut:
+    """Кто поставил мне ♥, а я ещё не ответил, — новые сверху. Те же правила, что у ленты: возраст взаимно,
+    без блокировок и банов. Число — всем, сами люди — только с Plus и Premium (бесплатно ни имён, ни фото)."""
+    now = utcnow()
+    profile = await _my_profile(session, user, now)
+    people = list(
+        await session.scalars(
+            select(User)
+            .join(Profile, Profile.user_id == User.id)
+            .join(Reaction, Reaction.from_user_id == User.id)
+            .where(
+                Reaction.to_user_id == user.id,
+                Reaction.kind == ReactionKind.LIKE,
+                *_visible_people(user, profile, now),
+                *_not_answered(user, now),
+            )
+            .options(*PERSON_OPTIONS)
+            .order_by(Reaction.created_at.desc(), Reaction.id.desc())
+            .limit(LIKES_LIST_MAX)
+        )
+    )
+    plan, _ = await plan_of(session, user.id, now)
+    if plan not in LIKES_LIST_PLANS:
+        return LikesOut(count=len(people), people=None)
+
+    tiers, names = await _reference(session)
+    me = _traits(await _load_person(session, user.id), tiers)
+    plans = await plans_of(session, [person.id for person in people], now)
+    today = now.date()
+    shown = []
+    for person in people:
+        match = compatibility(me, _traits(person, tiers), names)
+        shown.append(_person_out(person, match, photo_url, today, plans.get(person.id, "free")))
+    return LikesOut(count=len(people), people=shown)
 
 
 @router.post("/people/{person_id}/react", response_model=ReactOut)

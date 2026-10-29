@@ -7,6 +7,7 @@ import type {
   ChatSummary,
   FeedParams,
   Game,
+  LikesInfo,
   Lobby,
   LobbyDetail,
   LobbyFeed,
@@ -112,6 +113,8 @@ export const api = {
   react: (userId: number, kind: ReactionKind) =>
     request<{ match: Match | null }>('POST', `/people/${userId}/react`, { kind }),
   matches: () => request<Match[]>('GET', '/matches'),
+  // Кто лайкнул: число — всем, список — с Plus и Premium
+  likes: () => request<LikesInfo>('GET', '/people/likes'),
 
   // Жалоба сразу блокирует человека и уходит модераторам; блокировка — взаимная невидимость
   report: (input: ReportInput) => request<void>('POST', '/reports', input),
