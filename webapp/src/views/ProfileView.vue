@@ -7,8 +7,8 @@ import { formatAge } from '../format'
 import { LANGUAGES, LOOKING_FOR, PLAY_STYLE_LABELS } from '../labels'
 import BorderGlow from '../components/BorderGlow.vue'
 import FaceitLevel from '../components/FaceitLevel.vue'
+import PlanBadge from '../components/PlanBadge.vue'
 import { faceitColor, faceitLevel } from '../lobby'
-import { PHOTOS_MAX } from '../profile'
 import { gameById, session } from '../stores/session'
 import { originOf, reveal } from '../reveal'
 import { openFrom } from '../router'
@@ -49,7 +49,8 @@ const games = computed(() =>
 const stats = computed(() => [
   { value: String(games.value.length), label: 'игры' },
   { value: `${profile.value.reputation > 0 ? '+' : ''}${profile.value.reputation}`, label: 'репутация' },
-  { value: `${me.value.photos.length}/${PHOTOS_MAX}`, label: 'фото' },
+  // Лимит фото — по тарифу; загруженные раньше сверх лимита остаются, поэтому «3/1» не показываем
+  { value: `${me.value.photos.length}/${Math.max(me.value.photos.length, me.value.plan.photos_max)}`, label: 'фото' },
 ])
 
 const lookingFor = computed(() => LOOKING_FOR.find((option) => option.value === profile.value.looking_for)?.label)
@@ -143,7 +144,7 @@ function edit(event: Event) {
       @pointerup="onPointerUp"
       @click.capture="onClickCapture"
     >
-      <h1 class="hero__name">{{ profile.display_name }}</h1>
+      <h1 class="hero__name">{{ profile.display_name }}<PlanBadge :plan="me.plan.plan" /></h1>
       <p class="hero__meta">
         <span v-if="age !== null">{{ formatAge(age) }}</span>
         <span v-if="profile.city">{{ profile.city }}</span>

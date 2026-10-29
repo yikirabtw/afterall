@@ -115,16 +115,24 @@ async def test_create_rejects_invalid_body(make_player, create_lobby, overrides)
     await create_lobby(owner, expect=422, **overrides)
 
 
-async def test_active_lobby_limit(make_player, create_lobby, client):
+async def test_active_lobby_limit(make_player, create_lobby, client, set_plan):
     owner = await make_player()
     first = await create_lobby(owner)
     await create_lobby(owner)
 
+    # Бесплатно — две открытые пати сразу, дальше — подсказка про подписку
     response = await create_lobby(owner, expect=409)
-    assert response["detail"] == "too_many_active_lobbies"
+    assert response["detail"] == "lobbies_need_plan"
 
     await act(client, first["id"], owner, "cancel")
     await create_lobby(owner)
+
+    # С Plus — до пяти
+    await set_plan("plus", user_id=owner.id)
+    for _ in range(3):
+        await create_lobby(owner)
+    response = await create_lobby(owner, expect=409)
+    assert response["detail"] == "lobbies_need_plan"
 
 
 # --- Лента и видимость ---

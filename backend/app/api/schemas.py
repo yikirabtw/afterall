@@ -27,6 +27,7 @@ from app.db.enums import (
     UserRole,
 )
 from app.domain.age import age_on, search_limits
+from app.domain.plans import ACTIVE_LOBBY_LIMITS, PHOTO_LIMITS, Plan
 from app.domain.chats import MESSAGE_MAX
 from app.domain.time import as_utc, utcnow
 
@@ -256,6 +257,23 @@ class PhotoOut(Schema):
         return self
 
 
+class PlanOut(BaseModel):
+    """Свой тариф и что он даёт. until — до какого момента действует (у бесплатного None)."""
+
+    plan: Plan = "free"
+    until: UtcDatetime | None = None
+
+    @computed_field
+    @property
+    def photos_max(self) -> int:
+        return PHOTO_LIMITS[self.plan]
+
+    @computed_field
+    @property
+    def active_lobbies_max(self) -> int:
+        return ACTIVE_LOBBY_LIMITS[self.plan]
+
+
 class SearchAgeLimitsOut(BaseModel):
     min: int
     max: int | None  # None — без верхней границы (у взрослых)
@@ -277,6 +295,7 @@ class MeOut(Schema):
     photos: list[PhotoOut]  # первое — главное
     games: list[UserGameOut]
     availability: list[AvailabilitySlotOut]
+    plan: PlanOut = PlanOut()  # заполняет load_me
 
     @computed_field
     @property
@@ -406,6 +425,7 @@ class PersonOut(BaseModel):
     compatibility: int  # 0–100
     common_game_ids: list[int]
     reasons: list[str]
+    plan: Plan = "free"  # для значка Plus / Premium у ника
 
 
 class ReactIn(BaseModel):
@@ -423,6 +443,7 @@ class MatchOut(BaseModel):
     username: str | None
     discord_tag: str | None
     matched_at: UtcDatetime
+    plan: Plan = "free"
 
 
 class ReactOut(BaseModel):

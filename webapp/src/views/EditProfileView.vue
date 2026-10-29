@@ -7,12 +7,21 @@ import type { Me, Photo } from '../api/types'
 import PageHeader from '../components/PageHeader.vue'
 import ProfileFields from '../components/ProfileFields.vue'
 import { PHOTOS_MAX, profileError, profileFormFrom } from '../profile'
-import { goBack } from '../router'
+import { goBack, router } from '../router'
+import { shopTab } from '../stores/ui'
 import { session, setMe } from '../stores/session'
 import { confirmAction, haptic } from '../telegram'
 
 const form = ref(profileFormFrom(session.me!))
 const photos = computed(() => session.me!.photos)
+// Сколько фото можно по тарифу (бесплатно — одно); загруженные раньше сверх лимита остаются
+const photosMax = computed(() => session.me!.plan.photos_max)
+
+function openPlans() {
+  haptic.tap()
+  shopTab.value = 'plans'
+  void router.push('/shop')
+}
 const fileInput = ref<HTMLInputElement | null>(null)
 
 const uploading = ref(false)
@@ -110,6 +119,24 @@ async function save() {
               ✕
             </button>
           </template>
+          <!-- Слот сверх тарифа — с замком: ведёт в магазин к подпискам -->
+          <button
+            v-else-if="slot > photosMax"
+            class="photo-slot__locked"
+            type="button"
+            @click="openPlans"
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <path
+                d="M7 11V8a5 5 0 0 1 10 0v3M6 11h12v9H6z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <span>С Plus</span>
+          </button>
           <button
             v-else-if="slot === photos.length + 1"
             class="photo-slot__add"
@@ -128,7 +155,8 @@ async function save() {
       </div>
       <input ref="fileInput" type="file" accept="image/*" hidden @change="onFileChosen" />
       <p class="hint">
-        До {{ PHOTOS_MAX }} фото. Главное видят первым в ленте. Перед сохранением мы убираем из фото геометку.
+        {{ photosMax >= PHOTOS_MAX ? `До ${PHOTOS_MAX} фото.` : 'Бесплатно — одно фото, с Plus и Premium — до трёх.' }}
+        Главное видят первым в ленте. Перед сохранением мы убираем из фото геометку.
       </p>
       <p v-if="photoError" class="error-text">{{ photoError }}</p>
     </section>
@@ -234,6 +262,25 @@ async function save() {
   line-height: 1;
   color: var(--text);
   text-shadow: 0 0 12px rgb(var(--glow-rgb) / 0.7);
+}
+
+.photo-slot__locked {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-2);
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
 }
 
 .photo-slot__empty {

@@ -7,6 +7,7 @@ import { rankName } from '../lobby'
 import { gameById } from '../stores/session'
 import FaceitLevel from './FaceitLevel.vue'
 import PhotoCarousel from './PhotoCarousel.vue'
+import PlanBadge from './PlanBadge.vue'
 
 const props = defineProps<{ person: Person }>()
 
@@ -42,6 +43,7 @@ const meta = computed(() =>
     </span>
     <h2 class="person__name">
       {{ person.display_name }}<span v-if="person.age !== null" class="person__age">, {{ person.age }}</span>
+      <PlanBadge :plan="person.plan" />
     </h2>
     <p class="person__meta">{{ meta }}</p>
     <div class="person__games">

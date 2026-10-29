@@ -19,7 +19,6 @@ from app.db.models import Block, Game, GameRank, Lobby, LobbyMember, Profile, Us
 from app.domain.lobbies import (
     ACTIVE_STATUSES,
     LOBBY_TTL,
-    MAX_ACTIVE_OWNED_LOBBIES,
     MAX_PENDING_APPLICATIONS,
     MAX_START_AHEAD,
     START_GRACE,
@@ -27,8 +26,10 @@ from app.domain.lobbies import (
     rank_fits,
 )
 from app.bot import texts
+from app.domain.plans import ACTIVE_LOBBY_LIMITS
 from app.domain.time import utcnow
 from app.services.notify import Note
+from app.services.plans import plan_of
 from app.services.users import ban_inactive_clause, blocked_user_ids, is_ban_active
 
 router = APIRouter(prefix="/lobbies", tags=["пати"])
@@ -138,8 +139,10 @@ async def create_lobby(body: LobbyIn, user: OnboardedUser, session: SessionDep) 
             Lobby.owner_id == user.id, Lobby.status.in_(ACTIVE_STATUSES), Lobby.expires_at > now
         )
     )
-    if active_owned >= MAX_ACTIVE_OWNED_LOBBIES:
-        raise _error("too_many_active_lobbies")
+    # Сколько своих пати может быть открыто сразу — по тарифу (бесплатно 2, Plus 5, Premium 10)
+    plan, _ = await plan_of(session, user.id, now)
+    if active_owned >= ACTIVE_LOBBY_LIMITS[plan]:
+        raise _error("too_many_active_lobbies" if plan == "premium" else "lobbies_need_plan")
     if body.starts_at is not None and not (now - START_GRACE <= body.starts_at <= now + MAX_START_AHEAD):
         raise _invalid("starts_at_out_of_range")
 

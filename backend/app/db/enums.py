@@ -90,3 +90,16 @@ class ModerationActionKind(StrEnum):
     BAN = "ban"
     UNBAN = "unban"
     HIDE_LOBBY = "hide_lobby"
+
+
+class PlanKind(StrEnum):
+    """Платные тарифы. Бесплатный — это отсутствие действующей подписки."""
+
+    PLUS = "plus"
+    PREMIUM = "premium"
+
+
+class SubscriptionSource(StrEnum):
+    GRANT = "grant"  # выдал админ (тестерам, в подарок)
+    STARS = "stars"  # оплата звёздами Telegram — появится позже
+

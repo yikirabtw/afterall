@@ -6,7 +6,7 @@ from aiogram import Bot
 from fakes import RecordingSession
 from initdata import BOT_TOKEN, auth, make_init_data
 from players import Player
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
@@ -14,8 +14,9 @@ from sqlalchemy.pool import StaticPool
 import app.db.models  # noqa: F401
 from app.api.main import create_app
 from app.db.base import Base
-from app.db.enums import AgeGroup, LookingFor, PlayStyle
+from app.db.enums import AgeGroup, LookingFor, PlanKind, PlayStyle
 from app.db.models import Game, GameRank, GameRole, Profile, User, UserGame
+from app.services.plans import grant, revoke
 from app.db.session import enable_sqlite_foreign_keys
 from app.domain.age import age_group_for, years_ago
 from app.domain.time import utcnow
@@ -151,3 +152,20 @@ def make_player(session_maker, world):
         )
 
     return _make
+
+
+@pytest.fixture
+def set_plan(session_maker):
+    """Выдать тариф на 30 дней (или снять — plan=None). Пользователь — по id в базе или по Telegram ID."""
+
+    async def _set(plan: str | None, *, user_id: int | None = None, telegram_id: int | None = None) -> None:
+        async with session_maker.begin() as session:
+            if user_id is None:
+                user_id = await session.scalar(select(User.id).where(User.telegram_id == telegram_id))
+            if plan is None:
+                await revoke(session, user_id, utcnow())
+            else:
+                await grant(session, user_id, PlanKind(plan), 30, None, utcnow())
+
+    return _set
+

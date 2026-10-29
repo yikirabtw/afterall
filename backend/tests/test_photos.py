@@ -1,11 +1,11 @@
-"""Фото профиля: пережатие без EXIF, лимит в 3 фото, порядок, подписанные ссылки."""
+"""Фото профиля: пережатие без EXIF, лимит по тарифу, порядок, подписанные ссылки."""
 
 import io
 from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
-from initdata import auth
+from initdata import USER_ID, auth
 from PIL import Image
 
 from app.api.photo_links import make_photo_url, verify_photo_link
@@ -77,17 +77,33 @@ async def test_gif_is_not_supported(client):
     assert response.json()["detail"] == "photo_format_not_supported"
 
 
-async def test_at_most_three_photos(client):
-    for _ in range(3):
-        assert (await upload(client, make_jpeg(400, 400))).status_code == 200
+async def test_free_plan_has_one_photo(client):
+    assert (await upload(client, make_jpeg(400, 400))).status_code == 200
 
     response = await upload(client, make_jpeg(400, 400))
 
-    assert response.status_code == 409
-    assert response.json()["detail"] == "too_many_photos"
+    assert (response.status_code, response.json()["detail"]) == (409, "photos_need_plan")
 
 
-async def test_reorder_and_delete(client):
+async def test_plus_has_three_photos_and_keeps_them_after(client, set_plan):
+    await upload(client, make_jpeg(400, 400))  # пользователь создаётся при первом запросе
+    await set_plan("plus", telegram_id=USER_ID)
+    for _ in range(2):
+        assert (await upload(client, make_jpeg(400, 400))).status_code == 200
+    response = await upload(client, make_jpeg(400, 400))
+    assert (response.status_code, response.json()["detail"]) == (409, "too_many_photos")
+
+    # Подписка кончилась — загруженное остаётся, новое добавить нельзя
+    await set_plan(None, telegram_id=USER_ID)
+    me = (await client.get("/api/me", headers=auth())).json()
+    assert (len(me["photos"]), me["plan"]["plan"], me["plan"]["photos_max"]) == (3, "free", 1)
+    response = await upload(client, make_jpeg(400, 400))
+    assert response.json()["detail"] == "photos_need_plan"
+
+
+async def test_reorder_and_delete(client, set_plan):
+    await client.get("/api/me", headers=auth())
+    await set_plan("premium", telegram_id=USER_ID)
     for _ in range(3):
         photos = (await upload(client, make_jpeg(400, 400))).json()["photos"]
     first, second, third = (photo["id"] for photo in photos)

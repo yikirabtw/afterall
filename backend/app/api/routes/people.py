@@ -18,9 +18,11 @@ from app.db.enums import MatchSource, PlayStyle, ReactionKind
 from app.db.models import Game, GameRank, Match, Profile, Reaction, User, UserGame
 from app.domain.age import age_on, search_range, search_range_fits, years_ago
 from app.domain.people import CANDIDATE_POOL, SKIP_COOLDOWN, Compatibility, Traits, compatibility
+from app.domain.plans import Plan
 from app.domain.time import utcnow
 from app.bot import texts
 from app.services.notify import Note
+from app.services.plans import plans_of
 from app.services.users import ban_inactive_clause, blocked_user_ids
 
 router = APIRouter(tags=["люди"])
@@ -98,7 +100,9 @@ def _photos(user: User, photo_url: Callable[[int], str]) -> list[PhotoOut]:
     return [PhotoOut(id=photo.id, url=photo_url(photo.id), width=photo.width, height=photo.height) for photo in user.photos]
 
 
-def _person_out(user: User, match: Compatibility, photo_url: Callable[[int], str], today: date) -> PersonOut:
+def _person_out(
+    user: User, match: Compatibility, photo_url: Callable[[int], str], today: date, plan: Plan = "free"
+) -> PersonOut:
     profile = user.profile
     return PersonOut(
         user_id=user.id,
@@ -116,10 +120,13 @@ def _person_out(user: User, match: Compatibility, photo_url: Callable[[int], str
         compatibility=match.score,
         common_game_ids=match.common_game_ids,
         reasons=match.reasons,
+        plan=plan,
     )
 
 
-def _match_out(other: User, match: Match, photo_url: Callable[[int], str], today: date) -> MatchOut:
+def _match_out(
+    other: User, match: Match, photo_url: Callable[[int], str], today: date, plan: Plan = "free"
+) -> MatchOut:
     profile = other.profile
     return MatchOut(
         user_id=other.id,
@@ -130,6 +137,7 @@ def _match_out(other: User, match: Match, photo_url: Callable[[int], str], today
         username=other.username if profile.show_telegram else None,
         discord_tag=profile.discord_tag,
         matched_at=match.created_at,
+        plan=plan,
     )
 
 
@@ -182,7 +190,9 @@ async def people_feed(
     # Сортировка устойчивая: при равном совпадении первыми остаются недавно заходившие
     scored.sort(key=lambda pair: pair[0].score, reverse=True)
     today = now.date()
-    return [_person_out(person, match, photo_url, today) for match, person in scored[:limit]]
+    shown = scored[:limit]
+    plans = await plans_of(session, [person.id for _, person in shown], now)
+    return [_person_out(person, match, photo_url, today, plans.get(person.id, "free")) for match, person in shown]
 
 
 @router.post("/people/{person_id}/react", response_model=ReactOut)
@@ -240,7 +250,10 @@ async def react_to_person(
                 )
                 background.add_task(notifier.send, [note])
     await session.commit()
-    return ReactOut(match=_match_out(person, match, photo_url, now.date()) if match else None)
+    if match is None:
+        return ReactOut(match=None)
+    plan = (await plans_of(session, [person.id], now)).get(person.id, "free")
+    return ReactOut(match=_match_out(person, match, photo_url, now.date(), plan))
 
 
 @router.get("/matches", response_model=list[MatchOut])
@@ -261,12 +274,14 @@ async def my_matches(user: OnboardedUser, session: SessionDep, photo_url: PhotoU
             select(User).where(User.id.in_(other_ids - blocked)).options(*PERSON_OPTIONS)
         )
     }
-    today = utcnow().date()
+    now = utcnow()
+    today = now.date()
+    plans = await plans_of(session, people, now)
     result = []
     for match in matches:
         other_id = match.user_b_id if match.user_a_id == user.id else match.user_a_id
         if other_id in people:
-            result.append(_match_out(people[other_id], match, photo_url, today))
+            result.append(_match_out(people[other_id], match, photo_url, today, plans.get(other_id, "free")))
     return result
 
 

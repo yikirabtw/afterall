@@ -8,6 +8,7 @@ import FuseButton from '../components/FuseButton.vue'
 import MatchContacts from '../components/MatchContacts.vue'
 import PageHeader from '../components/PageHeader.vue'
 import PersonSheet from '../components/PersonSheet.vue'
+import PlanBadge from '../components/PlanBadge.vue'
 import WireCubes from '../components/WireCubes.vue'
 import { refreshUnread } from '../stores/chats'
 import { gameById } from '../stores/session'
@@ -119,6 +120,7 @@ onMounted(load)
           <div class="match__body">
             <b class="match__name">
               {{ match.display_name }}<span v-if="match.age !== null">, {{ match.age }}</span>
+              <PlanBadge :plan="match.plan" />
             </b>
             <p v-if="match.main_game_id" class="hint match__game">{{ gameById(match.main_game_id)?.name }}</p>
             <MatchContacts :match="match" class="match__contacts" />

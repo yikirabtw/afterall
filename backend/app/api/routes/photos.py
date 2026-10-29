@@ -9,10 +9,10 @@ from app.api.photo_links import verify_photo_link
 from app.api.routes.me import load_me
 from app.api.schemas import MeOut, PhotoOrderIn
 from app.db.models import UserPhoto
+from app.domain.plans import PHOTO_LIMITS, PHOTOS_MAX
 from app.domain.time import utcnow
 from app.services.photos import MAX_UPLOAD_BYTES, PhotoError, process_photo
-
-MAX_PHOTOS = 3
+from app.services.plans import plan_of
 
 router = APIRouter(tags=["фото"])
 
@@ -27,10 +27,16 @@ async def _my_photos(session, user_id: int) -> list[UserPhoto]:
 
 @router.post("/me/photos", response_model=MeOut)
 async def upload_photo(file: UploadFile, user: CurrentUser, session: SessionDep, photo_url: PhotoUrl) -> MeOut:
-    """Добавить фото в конец (первое — главное). До трёх фото, файл до 10 МБ: JPEG, PNG или WebP."""
+    """Добавить фото в конец (первое — главное). Файл до 10 МБ: JPEG, PNG или WebP.
+
+    Сколько фото можно, зависит от тарифа (бесплатно — одно, с Plus и Premium — три). Кто загрузил больше
+    до появления тарифов, их не теряет: лимит проверяется только при добавлении нового.
+    """
     count = await session.scalar(select(func.count(UserPhoto.id)).where(UserPhoto.user_id == user.id))
-    if count >= MAX_PHOTOS:
-        raise HTTPException(status.HTTP_409_CONFLICT, detail="too_many_photos")
+    plan, _ = await plan_of(session, user.id, utcnow())
+    if count >= PHOTO_LIMITS[plan]:
+        code = "too_many_photos" if PHOTO_LIMITS[plan] >= PHOTOS_MAX else "photos_need_plan"
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=code)
 
     raw = await file.read(MAX_UPLOAD_BYTES + 1)
     try:

@@ -141,3 +141,35 @@ MOD_ALREADY_DONE = "По этой жалобе уже есть решение."
 def mod_decision(action: str, moderator: str) -> str:
     labels = {"ban7": "бан на 7 дней", "ban": "бан навсегда", "reject": "жалоба отклонена"}
     return f"\n\n<b>Решение:</b> {labels[action]} — {escape(moderator)}"
+
+
+# --- Тарифы: выдача админом (см. app/bot/handlers/admin.py) ---
+
+PLAN_NAMES = {"plus": "Plus", "premium": "Premium"}
+
+ADMIN_PLAN_HELP = (
+    "<b>Выдать подписку</b>\n"
+    "/premium — себе на 30 дней\n"
+    "/premium 7 — себе на 7 дней\n"
+    "/premium @ник 30 — человеку по нику в Telegram\n"
+    "/premium 123456789 30 — по Telegram ID\n"
+    "/plus … — то же для Plus\n"
+    "/free @ник — снять подписку"
+)
+ADMIN_USER_NOT_FOUND = "Такого пользователя нет в базе — пусть сначала откроет бота."
+
+
+def _date(value) -> str:
+    return value.strftime("%d.%m.%Y")
+
+
+def plan_granted(name: str, plan: str, until) -> str:
+    return f"Готово: <b>{PLAN_NAMES[plan]}</b> у {escape(name)} до {_date(until)}."
+
+
+def plan_revoked(name: str, count: int) -> str:
+    return f"Готово: подписки {escape(name)} закончились." if count else f"У {escape(name)} нет действующей подписки."
+
+
+def plan_gift(plan: str, until) -> str:
+    return f"🎁 Тебе выдан <b>{PLAN_NAMES[plan]}</b> до {_date(until)}. Загляни в магазин в приложении."

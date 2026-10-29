@@ -6,7 +6,6 @@ from app.domain.time import as_utc
 LOBBY_TTL = timedelta(hours=3)  # заявка живёт 3 часа от начала пати
 MAX_START_AHEAD = timedelta(hours=24)  # пати — на сегодня-завтра, а не на месяц вперёд
 START_GRACE = timedelta(minutes=5)  # допуск на расхождение часов телефона и сервера
-MAX_ACTIVE_OWNED_LOBBIES = 2
 MAX_PENDING_APPLICATIONS = 10
 
 ACTIVE_STATUSES = (LobbyStatus.OPEN, LobbyStatus.FULL)

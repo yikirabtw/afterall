@@ -19,6 +19,7 @@ const MESSAGES: Record<string, string> = {
 
   // Фото и люди
   too_many_photos: 'Можно добавить не больше 3 фото.',
+  photos_need_plan: 'Бесплатно — одно фото. До трёх — с Plus или Premium.',
   photo_too_large: 'Фото слишком большое — до 10 МБ.',
   photo_format_not_supported: 'Подойдёт фото в JPEG, PNG или WebP.',
   photo_unreadable: 'Не получилось открыть это фото. Попробуй другое.',
@@ -36,7 +37,8 @@ const MESSAGES: Record<string, string> = {
   too_many_messages: 'Слишком много сообщений подряд. Подожди минутку.',
 
   // Пати
-  too_many_active_lobbies: 'У тебя уже 2 активные пати. Отмени одну или дождись, пока она закончится.',
+  too_many_active_lobbies: 'Открыто уже 10 пати — больше нельзя. Отмени одну или дождись, пока она закончится.',
+  lobbies_need_plan: 'Открытых пати уже максимум для твоего тарифа. Отмени одну — или больше пати с Plus и Premium.',
   starts_at_out_of_range: 'Пати можно собрать максимум на сутки вперёд.',
   party_too_big: 'В этой игре в пати не бывает столько людей.',
   invalid_rank_range: 'Ранг «от» должен быть не выше ранга «до».',

@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 
 import CosmeticPreview from '../components/CosmeticPreview.vue'
+import { formatDate } from '../format'
 import { SHEET_MS } from '../sheet'
 import {
   BOOST_RULES,
@@ -14,6 +15,7 @@ import {
   type Cosmetic,
   type CosmeticKind,
 } from '../shop'
+import { session } from '../stores/session'
 import { shopTab } from '../stores/ui'
 import { haptic } from '../telegram'
 
@@ -27,6 +29,9 @@ const TABS = [
 ] as const
 
 const SUBSCRIBER_DISCOUNT = 0.2
+
+// Свой тариф: на его карточке вместо «Оформить» — до какого числа он действует
+const myPlan = computed(() => session.me!.plan)
 
 const compare = ref(false)
 const kind = ref<CosmeticKind>('frame')
@@ -70,6 +75,11 @@ function soon() {
 
     <!-- Подписки -->
     <section v-if="shopTab === 'plans'" :key="'plans'" class="stack rise-in">
+      <p class="card my-plan" :class="`my-plan--${myPlan.plan}`">
+        <span class="hint">Твой тариф</span>
+        <b v-if="myPlan.plan === 'free'">Бесплатный</b>
+        <b v-else>{{ myPlan.plan === 'plus' ? 'Plus' : 'Premium' }} · до {{ formatDate(myPlan.until!) }}</b>
+      </p>
       <article v-for="plan in PLANS" :key="plan.id" class="card card--lit plan" :class="`plan--${plan.id}`">
         <header class="plan__head">
           <span class="plan__name">{{ plan.name }}</span>
@@ -79,7 +89,8 @@ function soon() {
         <ul class="perks">
           <li v-for="perk in plan.perks" :key="perk">{{ perk }}</li>
         </ul>
-        <button class="btn btn-outline plan__buy" type="button" aria-disabled="true" @click="soon">
+        <p v-if="myPlan.plan === plan.id" class="plan__active">Активен до {{ formatDate(myPlan.until!) }}</p>
+        <button v-else class="btn btn-outline plan__buy" type="button" aria-disabled="true" @click="soon">
           Оформить {{ plan.name }} — скоро
         </button>
       </article>
@@ -247,6 +258,45 @@ function soon() {
 }
 
 /* --- Подписки --- */
+
+.my-plan {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 12px 16px;
+}
+
+.my-plan .hint {
+  margin: 0;
+}
+
+.my-plan b {
+  font-family: var(--font-title);
+  font-weight: 400;
+}
+
+.my-plan--premium b {
+  color: var(--warn);
+}
+
+.plan__active {
+  margin: 16px 0 0;
+  padding: 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-btn);
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.plan--premium .plan__active {
+  border-color: color-mix(in srgb, var(--warn) 50%, transparent);
+  color: var(--warn);
+}
 
 .plan__head {
   display: flex;

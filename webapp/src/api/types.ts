@@ -63,6 +63,17 @@ export interface Me {
   games: UserGame[]
   availability: Slot[]
   search_age_limits: AgeLimits | null
+  plan: PlanInfo
+}
+
+export type Plan = 'free' | 'plus' | 'premium'
+
+/** Свой тариф и что он даёт; until — до какого момента действует (у бесплатного null) */
+export interface PlanInfo {
+  plan: Plan
+  until: string | null
+  photos_max: number
+  active_lobbies_max: number
 }
 
 export interface GameRank {
@@ -214,6 +225,7 @@ export interface PersonGame {
 export interface Person {
   user_id: number
   display_name: string
+  plan: Plan // значок Plus / Premium у ника
   age: number | null
   city: string | null
   bio: string | null
@@ -232,6 +244,7 @@ export interface Person {
 export interface Match {
   user_id: number
   display_name: string
+  plan: Plan
   age: number | null
   photos: Photo[]
   main_game_id: number | null

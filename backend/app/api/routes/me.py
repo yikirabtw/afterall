@@ -6,8 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, PhotoUrl, SessionDep
-from app.api.schemas import MeOut
+from app.api.schemas import MeOut, PlanOut
 from app.db.models import User, UserGame
+from app.domain.time import utcnow
+from app.services.plans import plan_of
 
 router = APIRouter(tags=["профиль"])
 
@@ -26,7 +28,10 @@ async def load_me(session: AsyncSession, user_id: int, photo_url: Callable[[int]
         # Пользователь уже в сессии (его загрузил вход) — перечитываем связи заново
         .execution_options(populate_existing=True)
     )
-    return MeOut.model_validate(user, context={"photo_url": photo_url})
+    me = MeOut.model_validate(user, context={"photo_url": photo_url})
+    plan, until = await plan_of(session, user_id, utcnow())
+    me.plan = PlanOut(plan=plan, until=until)
+    return me
 
 
 @router.get("/me", response_model=MeOut)

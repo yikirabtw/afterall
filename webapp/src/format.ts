@@ -16,6 +16,11 @@ export function formatStart(startsAt: string | null, now = new Date()): string {
 }
 
 /** «16 лет», «21 год», «13 лет» */
+/** «28.11.2026» — до какого числа действует подписка */
+export function formatDate(at: string): string {
+  return new Date(at).toLocaleDateString('ru-RU')
+}
+
 export function formatAge(age: number): string {
   const lastTwo = age % 100
   const last = age % 10
