@@ -15,6 +15,7 @@ import type {
   LobbyFeed,
   LobbyInput,
   Match,
+  Meta,
   Me,
   MemberDecision,
   PeopleParams,
@@ -92,6 +93,10 @@ export function assetUrl(path: string): string {
   return `${BASE_URL}${path}`
 }
 
+function inviteQuery(invite?: string): string {
+  return invite ? `?invite=${encodeURIComponent(invite)}` : ''
+}
+
 export const api = {
   me: () => request<Me>('GET', '/me'),
   games: () => request<Game[]>('GET', '/games'),
@@ -144,8 +149,12 @@ export const api = {
 
   // Все действия с пати возвращают свежую карточку — экран просто подменяет её
   createLobby: (lobby: LobbyInput) => request<LobbyDetail>('POST', '/lobbies', lobby),
-  lobby: (id: number) => request<LobbyDetail>('GET', `/lobbies/${id}`),
-  apply: (id: number, note: string | null) => request<LobbyDetail>('POST', `/lobbies/${id}/apply`, { note }),
+  // invite — код из ссылки-приглашения: без него закрытую пати видят только участники
+  lobby: (id: number, invite?: string) => request<LobbyDetail>('GET', `/lobbies/${id}${inviteQuery(invite)}`),
+  lobbyByInvite: (code: string) => request<LobbyDetail>('GET', `/lobbies/invite/${encodeURIComponent(code)}`),
+  apply: (id: number, note: string | null, invite?: string) =>
+    request<LobbyDetail>('POST', `/lobbies/${id}/apply${inviteQuery(invite)}`, { note }),
+  meta: () => request<Meta>('GET', '/meta'),
   leave: (id: number) => request<LobbyDetail>('POST', `/lobbies/${id}/leave`),
   decide: (id: number, memberId: number, decision: MemberDecision) =>
     request<LobbyDetail>('POST', `/lobbies/${id}/members/${memberId}/${decision}`),

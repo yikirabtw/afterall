@@ -173,3 +173,14 @@ def plan_revoked(name: str, count: int) -> str:
 
 def plan_gift(plan: str, until) -> str:
     return f"🎁 Тебе выдан <b>{PLAN_NAMES[plan]}</b> до {_date(until)}. Загляни в магазин в приложении."
+
+
+# --- Приглашение в закрытую пати (ссылка t.me/<бот>?start=join_<код>) ---
+
+
+def invite_open(lobby_title: str) -> str:
+    return f"🔒 Тебя зовут в закрытую пати «{escape(lobby_title)}». Открой и откликнись 👇"
+
+
+INVITE_EXPIRED = "Приглашение устарело — пати уже нет. Попроси новую ссылку."
+

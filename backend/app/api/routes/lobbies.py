@@ -3,6 +3,8 @@
 Кто что видит — в app/api/lobby_views.py, правила и лимиты — в app/domain/lobbies.py.
 """
 
+import hmac
+import secrets
 from datetime import datetime, timedelta
 from typing import Annotated
 
@@ -26,7 +28,7 @@ from app.domain.lobbies import (
     rank_fits,
 )
 from app.bot import texts
-from app.domain.plans import ACTIVE_LOBBY_LIMITS
+from app.domain.plans import ACTIVE_LOBBY_LIMITS, PRIVATE_LOBBY_PLANS
 from app.domain.time import utcnow
 from app.services.notify import Note
 from app.services.boosts import boosted_lobbies
@@ -64,7 +66,7 @@ async def _is_blocked(session: AsyncSession, a: int, b: int) -> bool:
 
 
 async def _get_visible_lobby(
-    session: AsyncSession, lobby_id: int, viewer: User, now: datetime, *, lock: bool = False
+    session: AsyncSession, lobby_id: int, viewer: User, now: datetime, *, lock: bool = False, invite: str | None = None
 ) -> Lobby:
     if lock:
         # В Postgres блокируем строку, чтобы два одновременных «принять» не переполнили пати
@@ -84,6 +86,9 @@ async def _get_visible_lobby(
         or is_ban_active(lobby.owner, now)
         or await _is_blocked(session, viewer.id, lobby.owner_id)
     ):
+        raise _not_found()
+    # Закрытую пати посторонний видит только по ссылке-приглашению; возраст и блокировки — как у всех
+    if lobby.is_private and (invite is None or not hmac.compare_digest(invite, lobby.invite_code or "")):
         raise _not_found()
     return lobby
 
@@ -124,8 +129,10 @@ async def _my_rank_tier(session: AsyncSession, user_id: int, game_id: int | None
     )
 
 
-async def _detail(session: AsyncSession, lobby_id: int, viewer: User, now: datetime) -> LobbyDetailOut:
-    out = lobby_detail_out(await _get_visible_lobby(session, lobby_id, viewer, now), viewer.id, now)
+async def _detail(
+    session: AsyncSession, lobby_id: int, viewer: User, now: datetime, invite: str | None = None
+) -> LobbyDetailOut:
+    out = lobby_detail_out(await _get_visible_lobby(session, lobby_id, viewer, now, invite=invite), viewer.id, now)
     out.boosted_until = (await boosted_lobbies(session, now, [lobby_id])).get(lobby_id)
     return out
 
@@ -149,6 +156,11 @@ async def create_lobby(body: LobbyIn, user: OnboardedUser, session: SessionDep) 
     if body.starts_at is not None and not (now - START_GRACE <= body.starts_at <= now + MAX_START_AHEAD):
         raise _invalid("starts_at_out_of_range")
 
+    if body.is_private:
+        plan, _ = await plan_of(session, user.id, now)
+        if plan not in PRIVATE_LOBBY_PLANS:
+            raise _error("private_needs_premium", status.HTTP_403_FORBIDDEN)
+
     if body.kind == LobbyKind.GAME:
         game = await session.scalar(
             select(Game).where(Game.id == body.game_id, Game.is_active).options(selectinload(Game.ranks))
@@ -170,6 +182,7 @@ async def create_lobby(body: LobbyIn, user: OnboardedUser, session: SessionDep) 
         age_group=user.age_group,
         status=LobbyStatus.OPEN,
         expires_at=(body.starts_at or now) + LOBBY_TTL,
+        invite_code=secrets.token_urlsafe(8) if body.is_private else None,
     )
     lobby.members = [LobbyMember(user_id=user.id, is_owner=True, status=MemberStatus.ACCEPTED, decided_at=now)]
     session.add(lobby)
@@ -227,6 +240,7 @@ async def lobby_feed(
             Lobby.status == LobbyStatus.OPEN,
             Lobby.expires_at > now,
             Lobby.age_group == user.age_group,
+            Lobby.is_private.is_(False),  # закрытые — только по ссылке
             Lobby.owner_id != user.id,
             Lobby.owner_id.not_in(blocked_user_ids(user.id)),
             ban_inactive_clause(now),
@@ -290,10 +304,22 @@ async def my_lobbies(user: OnboardedUser, session: SessionDep) -> list[LobbyOut]
     return result
 
 
+@router.get("/invite/{code}", response_model=LobbyDetailOut)
+async def lobby_by_invite(code: str, user: OnboardedUser, session: SessionDep) -> LobbyDetailOut:
+    """Закрытая пати по ссылке-приглашению. Возрастная группа и блокировки действуют как обычно."""
+    lobby_id = await session.scalar(select(Lobby.id).where(Lobby.invite_code == code))
+    if lobby_id is None:
+        raise _not_found()
+    return await _detail(session, lobby_id, user, utcnow(), invite=code)
+
+
 @router.get("/{lobby_id}", response_model=LobbyDetailOut)
-async def get_lobby(lobby_id: int, user: OnboardedUser, session: SessionDep) -> LobbyDetailOut:
-    """Карточка пати. Создатель видит откликнувшихся, принятые — друг друга и контакты."""
-    return await _detail(session, lobby_id, user, utcnow())
+async def get_lobby(
+    lobby_id: int, user: OnboardedUser, session: SessionDep, invite: str | None = None
+) -> LobbyDetailOut:
+    """Карточка пати. Создатель видит откликнувшихся, принятые — друг друга и контакты.
+    Закрытую — участники и пришедшие по приглашению (invite — код из ссылки)."""
+    return await _detail(session, lobby_id, user, utcnow(), invite=invite)
 
 
 # --- Отклики ---
@@ -311,6 +337,7 @@ async def apply_to_lobby(
     notifier: NotifierDep,
     background: BackgroundTasks,
     body: ApplyIn | None = None,
+    invite: str | None = None,
 ) -> LobbyDetailOut:
     """Откликнуться на пати (сообщение создателю — по желанию). Проверяет микрофон и ранг, если пати их требует.
 
@@ -318,7 +345,7 @@ async def apply_to_lobby(
     """
     now = utcnow()
     note = body.note if body else None
-    lobby = await _get_visible_lobby(session, lobby_id, user, now)
+    lobby = await _get_visible_lobby(session, lobby_id, user, now, invite=invite)
     if lobby.owner_id == user.id:
         raise _error("cannot_apply_own_lobby")
     current_status = effective_status(lobby.status, lobby.expires_at, now)
@@ -370,7 +397,7 @@ async def apply_to_lobby(
     text = texts.notify_application(name, lobby.title, note)
     owner = Note(await _telegram_id(session, lobby.owner_id), text, texts.BUTTON_OPEN_LOBBY, f"lobby/{lobby.id}")
     background.add_task(notifier.send, [owner])
-    return await _detail(session, lobby.id, user, now)
+    return await _detail(session, lobby.id, user, now, invite=invite)
 
 
 @router.post("/{lobby_id}/leave", response_model=LobbyDetailOut)

@@ -370,3 +370,47 @@ async def test_my_lobbies(client, make_player, create_lobby):
 
     await act(client, lobby["id"], owner, "cancel")
     assert (await client.get("/api/lobbies/mine", headers=owner.headers)).json() == []
+
+
+# --- Закрытая пати по ссылке (Premium) ---
+
+
+async def test_private_lobby_needs_premium(make_player, create_lobby, set_plan):
+    owner = await make_player()
+    response = await create_lobby(owner, expect=403, is_private=True)
+    assert response["detail"] == "private_needs_premium"
+
+    await set_plan("premium", user_id=owner.id)
+    lobby = await create_lobby(owner, is_private=True)
+    assert lobby["is_private"] is True and lobby["invite_code"]
+
+
+async def test_private_lobby_only_by_invite(client, make_player, create_lobby, set_plan):
+    owner, friend, stranger = await make_player(), await make_player(), await make_player()
+    await set_plan("premium", user_id=owner.id)
+    lobby = await create_lobby(owner, is_private=True)
+    code = lobby["invite_code"]
+
+    # В ленте её нет, по id без кода — тоже
+    assert lobby["id"] not in await feed_ids(client, stranger)
+    assert (await client.get(f"/api/lobbies/{lobby['id']}", headers=stranger.headers)).status_code == 404
+    assert (await client.get(f"/api/lobbies/{lobby['id']}?invite=wrong", headers=stranger.headers)).status_code == 404
+
+    # По ссылке — видно и можно откликнуться; код посторонним не показываем
+    seen = (await client.get(f"/api/lobbies/invite/{code}", headers=friend.headers)).json()
+    assert (seen["id"], seen["invite_code"]) == (lobby["id"], None)
+    applied = await client.post(f"/api/lobbies/{lobby['id']}/apply?invite={code}", headers=friend.headers)
+    assert applied.status_code == 200, applied.text
+    # После отклика пати видна ему и без кода
+    assert (await client.get(f"/api/lobbies/{lobby['id']}", headers=friend.headers)).status_code == 200
+
+
+async def test_invite_does_not_bypass_age_group(client, make_player, create_lobby, set_plan):
+    owner = await make_player(age=25)
+    teen = await make_player(age=15)
+    await set_plan("premium", user_id=owner.id)
+    lobby = await create_lobby(owner, is_private=True)
+
+    response = await client.get(f"/api/lobbies/invite/{lobby['invite_code']}", headers=teen.headers)
+    assert response.status_code == 404
+

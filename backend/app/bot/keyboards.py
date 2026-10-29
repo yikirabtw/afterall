@@ -1,4 +1,6 @@
-from aiogram.types import InlineKeyboardMarkup, WebAppInfo
+from urllib.parse import quote
+
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.bot import texts
@@ -26,3 +28,15 @@ def moderation_keyboard(report_id: int) -> InlineKeyboardMarkup:
         builder.button(text=label, callback_data=f"{MODERATION_PREFIX}:{report_id}:{action}")
     builder.adjust(2, 1)
     return builder.as_markup()
+
+
+def app_link(webapp_url: str, path: str) -> str:
+    """Ссылка, по которой мини-приложение сразу откроет нужный экран (читает ?open= при запуске)."""
+    separator = "&" if "?" in webapp_url else "?"
+    return f"{webapp_url}{separator}open={quote(path, safe='/')}"
+
+
+def open_app(webapp_url: str, path: str, text: str) -> InlineKeyboardMarkup:
+    button = InlineKeyboardButton(text=text, web_app=WebAppInfo(url=app_link(webapp_url, path)))
+    return InlineKeyboardMarkup(inline_keyboard=[[button]])
+

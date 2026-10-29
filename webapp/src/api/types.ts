@@ -158,6 +158,7 @@ export interface Lobby {
   my_status: MemberStatus | null
   contact_link: string | null
   boosted_until: string | null // поднята бустом до — на карточке пометка «поднята»
+  is_private: boolean // закрытая: в ленте её нет, только по ссылке
 }
 
 export interface LobbyMember {
@@ -180,6 +181,7 @@ export interface LobbyMember {
 export interface LobbyDetail extends Lobby {
   // Создатель видит откликнувшихся и принятых, принятый — принятых, остальные — никого
   members: LobbyMember[]
+  invite_code: string | null // код приглашения закрытой пати — только создателю
 }
 
 export interface LobbyInput {
@@ -195,6 +197,7 @@ export interface LobbyInput {
   language: string
   starts_at: string | null // ISO с часовым поясом; null — «прямо сейчас»
   contact_link: string | null
+  is_private?: boolean // закрытая — только по ссылке-приглашению (Premium)
 }
 
 export type MemberDecision = 'accept' | 'decline' | 'kick'
@@ -344,4 +347,9 @@ export interface BoostStatus {
   today_left: number
   profile_until: string | null
   lobbies: Record<string, string> // id моей пати → до какого момента поднята
+}
+
+/** О самом сервисе: ник бота — для ссылок-приглашений (локально его нет) */
+export interface Meta {
+  bot_username: string | null
 }

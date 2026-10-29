@@ -180,6 +180,7 @@ class LobbyIn(BaseModel):
     language: LanguageCode = "ru"
     starts_at: AwareDatetime | None = None  # None — «прямо сейчас»
     contact_link: str | None = None
+    is_private: bool = False  # закрытая — только по ссылке-приглашению (Premium)
 
     @field_validator("contact_link")
     @classmethod
@@ -385,11 +386,19 @@ class LobbyOut(BaseModel):
     my_status: MemberStatus | None  # мой отклик или участие; None — не откликался
     contact_link: str | None  # только создателю и принятым
     boosted_until: UtcDatetime | None = None  # поднята в ленте до (буст); на карточке — пометка «поднята»
+    is_private: bool = False  # закрытая: в ленте её нет, только по ссылке
 
 
 class LobbyDetailOut(LobbyOut):
     # Создатель видит откликнувшихся и принятых, принятый — принятых, остальные — никого
     members: list[LobbyMemberOut]
+    invite_code: str | None = None  # код приглашения закрытой пати — только создателю
+
+
+class MetaOut(BaseModel):
+    """Что нужно приложению о самом сервисе: ник бота — для ссылок-приглашений (локально его нет)."""
+
+    bot_username: str | None
 
 
 class LobbyFeedOut(BaseModel):

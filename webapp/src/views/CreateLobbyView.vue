@@ -9,6 +9,7 @@ import GameSelect from '../components/GameSelect.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { LANGUAGES, PLAY_STYLES } from '../labels'
 import { gameById, session } from '../stores/session'
+import { shopTab } from '../stores/ui'
 import { haptic } from '../telegram'
 
 const router = useRouter()
@@ -97,6 +98,21 @@ function normalizeContact(raw: string): string | null {
   return allowed.test(link) ? link : null
 }
 
+// Закрытая пати по ссылке — только Premium (сервер проверит сам); без него переключатель ведёт к подпискам
+const isPrivate = ref(false)
+const canPrivate = computed(() => session.me!.plan.plan === 'premium')
+
+function onPrivateClick(event: Event) {
+  if (canPrivate.value) {
+    haptic.select()
+    return
+  }
+  event.preventDefault()
+  haptic.tap()
+  shopTab.value = 'plans'
+  void router.push('/shop')
+}
+
 async function submit() {
   const contact = contactLink.value.trim() ? normalizeContact(contactLink.value) : null
   if (title.value.trim().length < 3) error.value = 'Назови пати — хотя бы 3 символа.'
@@ -121,6 +137,7 @@ async function submit() {
       rank_max_id: rankMax.value,
       need_mic: needMic.value,
       play_style: kind.value === 'game' ? playStyle.value : null,
+      is_private: isPrivate.value,
       language: language.value,
       starts_at: startsAt.value?.toISOString() ?? null,
       contact_link: contact,
@@ -215,6 +232,16 @@ async function submit() {
           <span class="hint block">Без микрофона откликнуться не получится</span>
         </span>
         <input v-model="needMic" class="switch" type="checkbox" @change="haptic.select()" />
+      </label>
+
+      <label class="card toggle-row">
+        <span>
+          <b>Закрытая — по ссылке</b>
+          <span class="hint block">
+            {{ canPrivate ? 'В ленте её не будет — позовёшь друзей ссылкой' : 'Только для своих — с Premium' }}
+          </span>
+        </span>
+        <input v-model="isPrivate" class="switch" type="checkbox" @click="onPrivateClick" />
       </label>
 
       <!-- Стиль игры — только для пати в игру: у «Просто посидеть» он не нужен -->

@@ -158,6 +158,11 @@ API работает на http://127.0.0.1:8000, документация с к�
 - Контакты — только в мэтче: `discord_tag`, если указан; `username` (ник в Telegram) — только если человек
   включил «Показывать мой Telegram» (`show_telegram` в анкете). Иначе общаются в чате приложения.
 
+### Закрытая пати (ветка dev, Premium)
+`POST /api/lobbies` с `"is_private": true` (иначе 403 `private_needs_premium`) — в ленте её нет, создатель видит
+`invite_code`. Посторонние — `GET /api/lobbies/invite/{code}`, `GET /api/lobbies/{id}?invite=…`,
+`POST /api/lobbies/{id}/apply?invite=…`. Ссылка — `https://t.me/<бот>?start=join_<код>` (ник — `GET /api/meta`).
+
 ### Бусты (ветка dev)
 `GET /api/boosts` — остаток (бесплатные на неделе, купленные, сегодня) и что поднято; `POST /api/boosts`
 `{"kind": "lobby", "lobby_id"}` — пати на час, `{"kind": "profile"}` — анкета на 6 часов. Ошибки: 402

@@ -12,7 +12,7 @@ import { openFrom, router } from '../router'
 import { shopTab } from '../stores/ui'
 import { confirmAction, haptic, openExternal } from '../telegram'
 
-const props = defineProps<{ id: number }>()
+const props = defineProps<{ id: number; invite?: string }>()
 
 const lobby = ref<LobbyDetail | null>(null)
 const loading = ref(true)
@@ -26,7 +26,7 @@ async function load() {
   loading.value = true
   loadError.value = ''
   try {
-    lobby.value = await api.lobby(props.id)
+    lobby.value = await api.lobby(props.id, props.invite)
   } catch (e) {
     loadError.value = errorMessage(e)
   } finally {
@@ -37,7 +37,39 @@ async function load() {
 onMounted(async () => {
   await load()
   if (lobby.value?.is_owner) void loadBoosts()
+  if (lobby.value?.invite_code) void loadInviteLink()
 })
+
+// --- Закрытая пати: ссылка-приглашение через бота (t.me/<бот>?start=join_<код>) ---
+
+const inviteLink = ref('')
+
+async function loadInviteLink() {
+  try {
+    const { bot_username: bot } = await api.meta()
+    // Локально бота нет — показываем хотя бы код
+    inviteLink.value = bot ? `https://t.me/${bot}?start=join_${lobby.value!.invite_code}` : ''
+  } catch {
+    inviteLink.value = ''
+  }
+}
+
+function shareInvite() {
+  haptic.tap()
+  const text = `Залетай в пати «${lobby.value!.title}»`
+  openExternal(`https://t.me/share/url?url=${encodeURIComponent(inviteLink.value)}&text=${encodeURIComponent(text)}`)
+}
+
+async function copyInvite() {
+  try {
+    await navigator.clipboard.writeText(inviteLink.value || lobby.value!.invite_code!)
+    copied.value = 'invite'
+    haptic.success()
+    window.setTimeout(() => (copied.value = null), 1500)
+  } catch {
+    // буфер обмена недоступен — ссылка и так на экране
+  }
+}
 
 // --- Буст своей пати: поднять в ленте на час (бесплатные по подписке, потом купленные) ---
 
@@ -149,7 +181,7 @@ async function run(action: () => Promise<LobbyDetail>): Promise<boolean> {
 }
 
 async function apply() {
-  if (await run(() => api.apply(props.id, note.value.trim() || null))) note.value = ''
+  if (await run(() => api.apply(props.id, note.value.trim() || null, props.invite))) note.value = ''
 }
 
 async function leave() {
@@ -237,7 +269,19 @@ async function copyDiscord(tag: string) {
 
       <p v-if="banner" class="banner" :class="`banner--${banner.tone}`">{{ banner.text }}</p>
 
-      <section v-if="lobby.is_owner && lobby.status === 'open' && boosts" class="card contact boost">
+      <section v-if="lobby.invite_code && isActive" class="card invite">
+        <b>🔒 Закрытая пати</b>
+        <p class="hint">В ленте её нет — зови по ссылке. Возраст и блокировки работают как обычно.</p>
+        <p class="invite__link">{{ inviteLink || `код: ${lobby.invite_code}` }}</p>
+        <div class="invite__actions">
+          <button v-if="inviteLink" class="btn btn-primary btn-small" type="button" @click="shareInvite">Поделиться</button>
+          <button class="btn btn-ghost btn-small" type="button" @click="copyInvite">
+            {{ copied === 'invite' ? 'Скопировано' : 'Скопировать' }}
+          </button>
+        </div>
+      </section>
+
+      <section v-if="lobby.is_owner && lobby.status === 'open' && !lobby.is_private && boosts" class="card contact boost">
         <div>
           <b>Поднять в ленте</b>
           <p v-if="lobby.boosted_until" class="hint">Поднята до {{ formatMessageTime(lobby.boosted_until) }} — первая в ленте</p>
@@ -508,6 +552,30 @@ async function copyDiscord(tag: string) {
 
 .banner--muted {
   --tone: var(--g-500);
+}
+
+.invite {
+  margin-top: 12px;
+}
+
+.invite .hint {
+  margin: 4px 0 0;
+}
+
+.invite__link {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-pixel);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.invite__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
 }
 
 .contact {

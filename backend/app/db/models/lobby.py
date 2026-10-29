@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, SmallInteger, String, UniqueConstraint
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, SmallInteger, String, UniqueConstraint, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, BigIntPK, TimestampMixin, str_enum
@@ -47,6 +47,9 @@ class Lobby(TimestampMixin, Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))  # заявка живёт 2–3 часа
     status: Mapped[LobbyStatus] = mapped_column(str_enum(LobbyStatus), default=LobbyStatus.OPEN)
     contact_link: Mapped[str | None] = mapped_column(String(256))  # видна только принятым участникам
+    # Закрытая пати (Premium): в ленте её нет, попасть — по ссылке-приглашению с этим кодом
+    is_private: Mapped[bool] = mapped_column(default=False, server_default=false())
+    invite_code: Mapped[str | None] = mapped_column(String(32), unique=True)
 
     owner: Mapped[User] = relationship()
     game: Mapped[Game | None] = relationship()

@@ -175,3 +175,21 @@ async def test_expired_ban_lets_user_in(bot, session_maker):
 def test_is_ban_active(is_banned, banned_until, expected):
     user = User(telegram_id=1, first_name="x", is_banned=is_banned, banned_until=banned_until)
     assert is_ban_active(user, now=datetime(2026, 6, 1, tzinfo=timezone.utc)) is expected
+
+
+async def test_invite_link_opens_private_lobby(bot, session_maker, make_player, create_lobby, set_plan):
+    owner = await make_player()
+    await set_plan("premium", user_id=owner.id)
+    lobby = await create_lobby(owner, is_private=True)
+    dispatcher = build_dispatcher(session_maker, WEBAPP_URL)
+
+    await dispatcher.feed_update(bot, message_update(f"/start join_{lobby['invite_code']}"))
+
+    [reply] = sent(bot, SendMessage)
+    assert "закрытую пати" in reply.text
+    button = reply.reply_markup.inline_keyboard[0][0]
+    assert button.web_app.url == f"{WEBAPP_URL}?open=invite/{lobby['invite_code']}"
+
+    await dispatcher.feed_update(bot, message_update("/start join_nope"))
+    assert sent(bot, SendMessage)[-1].text == texts.INVITE_EXPIRED
+

@@ -60,6 +60,7 @@ def lobby_out(lobby: Lobby, viewer_id: int, now: datetime) -> LobbyOut:
         is_owner=lobby.owner_id == viewer_id,
         my_status=membership.status if membership else None,
         contact_link=lobby.contact_link if _sees_contacts(membership) else None,
+        is_private=lobby.is_private,
     )
 
 
@@ -99,4 +100,9 @@ def lobby_detail_out(lobby: Lobby, viewer_id: int, now: datetime) -> LobbyDetail
         for member in sorted(lobby.members, key=lambda m: (not m.is_owner, m.id))
         if member.status in visible_statuses
     ]
-    return LobbyDetailOut(**lobby_out(lobby, viewer_id, now).model_dump(), members=members)
+    return LobbyDetailOut(
+        **lobby_out(lobby, viewer_id, now).model_dump(),
+        members=members,
+        # Пригласить в закрытую пати может только создатель — код видит только он
+        invite_code=lobby.invite_code if lobby.owner_id == viewer_id else None,
+    )

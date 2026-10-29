@@ -48,6 +48,7 @@ def create_app(
         if webhook and webhook.url:
             # Регистрируем при каждом старте: бесплатный хостинг засыпает и просыпается
             await setup_bot(webhook.bot, webhook.webapp_url)
+            _app.state.bot_username = (await webhook.bot.get_me()).username
             await webhook.bot.set_webhook(
                 webhook.url,
                 secret_token=webhook.secret,
@@ -62,6 +63,7 @@ def create_app(
     app.state.session_maker = session_maker
     app.state.init_data_max_age = init_data_max_age
     app.state.webhook = webhook
+    app.state.bot_username = None  # узнаём у Telegram при старте (только на сервере) — для ссылок-приглашений
     # Уведомления шлёт тот же бот, что принимает вебхук; без вебхука (локально) — только в лог
     app.state.notifier = notifier or Notifier(webhook.bot if webhook else None, webhook.webapp_url if webhook else None)
     # Ключ подписи ссылок на фото — выводим из токена бота, чтобы не заводить ещё один секрет

@@ -9,13 +9,12 @@
 
 import logging
 from dataclasses import dataclass
-from urllib.parse import quote
-
 from aiogram import Bot
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from aiogram.types import InlineKeyboardMarkup
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.bot.keyboards import app_link, open_app
 from app.db.enums import UserRole
 from app.db.models import User
 
@@ -52,13 +51,10 @@ class Notifier:
             return note.markup
         if note.button is None or note.open_path is None or not self.webapp_url:
             return None
-        button = InlineKeyboardButton(text=note.button, web_app=WebAppInfo(url=self.app_link(note.open_path)))
-        return InlineKeyboardMarkup(inline_keyboard=[[button]])
+        return open_app(self.webapp_url, note.open_path, note.button)
 
     def app_link(self, path: str) -> str:
-        """Ссылка, по которой мини-приложение сразу откроет нужный экран (читает ?open= при запуске)."""
-        separator = "&" if "?" in self.webapp_url else "?"
-        return f"{self.webapp_url}{separator}open={quote(path, safe='/')}"
+        return app_link(self.webapp_url, path)
 
 
 async def moderator_telegram_ids(session: AsyncSession, admin_ids: frozenset[int]) -> set[int]:

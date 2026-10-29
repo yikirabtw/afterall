@@ -23,5 +23,8 @@ LIKES_LIST_MAX = 100
 REWIND_LIMITS: dict[Plan, int | None] = {"free": 0, "plus": 3, "premium": None}
 REWIND_WINDOW = timedelta(days=1)
 
+# Закрытая пати по ссылке — только Premium
+PRIVATE_LOBBY_PLANS: tuple[Plan, ...] = ("premium",)
+
 GRANT_DEFAULT = timedelta(days=30)  # срок подписки, выданной админом без указания дней
 GRANT_MAX_DAYS = 3650
