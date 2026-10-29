@@ -221,3 +221,23 @@ async def test_plan_shows_rewinds_per_day(client, make_player, set_plan):
     assert (await client.get("/api/me", headers=me.headers)).json()["plan"]["rewinds_per_day"] == 3
     await set_plan("premium", user_id=me.id)
     assert (await client.get("/api/me", headers=me.headers)).json()["plan"]["rewinds_per_day"] is None
+
+
+# --- Наборы настроек ленты (Premium) ---
+
+
+async def test_feed_presets_are_premium(client, make_player, set_plan):
+    me = await make_player()
+    preset = {"name": "Вечер доты", "mode": "play", "game_id": None, "need_mic": True}
+
+    response = await client.put("/api/me/feed-presets", json={"presets": [preset]}, headers=me.headers)
+    assert (response.status_code, response.json()["detail"]) == (403, "presets_need_premium")
+    assert (await client.put("/api/me/feed-presets", json={"presets": []}, headers=me.headers)).status_code == 200
+
+    await set_plan("premium", user_id=me.id)
+    saved = (await client.put("/api/me/feed-presets", json={"presets": [preset]}, headers=me.headers)).json()
+    [stored] = saved["profile"]["feed_presets"]
+    assert (stored["name"], stored["mode"], stored["need_mic"]) == ("Вечер доты", "play", True)
+
+    too_many = {"presets": [{**preset, "name": f"Набор {n}"} for n in range(6)]}
+    assert (await client.put("/api/me/feed-presets", json=too_many, headers=me.headers)).status_code == 422

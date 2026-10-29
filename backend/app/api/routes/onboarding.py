@@ -12,10 +12,12 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, OnboardedUser, PhotoUrl, SessionDep
 from app.api.routes.me import load_me
-from app.api.schemas import AvailabilityIn, BirthDateIn, GamesIn, MeOut, ProfileIn, SearchAgeIn
+from app.api.schemas import AvailabilityIn, BirthDateIn, FeedPresetsIn, GamesIn, MeOut, ProfileIn, SearchAgeIn
 from app.db.models import Game, Profile, UserAvailability, UserGame
 from app.domain.age import age_group_for, age_on, search_limits
+from app.domain.plans import FEED_PRESET_PLANS
 from app.domain.time import utcnow
+from app.services.plans import plan_of
 
 router = APIRouter(prefix="/me", tags=["онбординг и анкета"])
 
@@ -69,6 +71,21 @@ async def save_search_age(body: SearchAgeIn, user: OnboardedUser, session: Sessi
     profile = await session.get(Profile, user.id)
     profile.search_age_min = None if start == low else start
     profile.search_age_max = None if end == high else end
+    await session.commit()
+    return await load_me(session, user.id, photo_url)
+
+
+@router.put("/feed-presets", response_model=MeOut)
+async def save_feed_presets(
+    body: FeedPresetsIn, user: OnboardedUser, session: SessionDep, photo_url: PhotoUrl
+) -> MeOut:
+    """Наборы настроек ленты заменяются целиком. Сохранять — с Premium; очистить можно всегда."""
+    if body.presets:
+        plan, _ = await plan_of(session, user.id, utcnow())
+        if plan not in FEED_PRESET_PLANS:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, detail="presets_need_premium")
+    profile = await session.get(Profile, user.id)
+    profile.feed_presets = [preset.model_dump(mode="json") for preset in body.presets]
     await session.commit()
     return await load_me(session, user.id, photo_url)
 

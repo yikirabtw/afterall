@@ -8,6 +8,7 @@ import type {
   ChatMessage,
   ChatSummary,
   FeedParams,
+  FeedPreset,
   Game,
   LikesInfo,
   Lobby,
@@ -155,6 +156,8 @@ export const api = {
   apply: (id: number, note: string | null, invite?: string) =>
     request<LobbyDetail>('POST', `/lobbies/${id}/apply${inviteQuery(invite)}`, { note }),
   meta: () => request<Meta>('GET', '/meta'),
+  // Наборы настроек ленты (Premium) — заменяются целиком
+  saveFeedPresets: (presets: FeedPreset[]) => request<Me>('PUT', '/me/feed-presets', { presets }),
   leave: (id: number) => request<LobbyDetail>('POST', `/lobbies/${id}/leave`),
   decide: (id: number, memberId: number, decision: MemberDecision) =>
     request<LobbyDetail>('POST', `/lobbies/${id}/members/${memberId}/${decision}`),

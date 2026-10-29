@@ -90,6 +90,8 @@ class Profile(TimestampMixin, Base):
     # Возраст поиска в ленте людей («от и до»), взаимный. None — граница по рамкам (domain/age.search_limits)
     search_age_min: Mapped[int | None] = mapped_column(SmallInteger)
     search_age_max: Mapped[int | None] = mapped_column(SmallInteger)
+    # Наборы настроек ленты (Premium): [{name, mode, game_id, need_mic, play_style, language}], до 5
+    feed_presets: Mapped[list[dict] | None] = mapped_column(JSON)
     reputation: Mapped[int] = mapped_column(default=0)  # кэш: положительные минус отрицательные отзывы
 
     user: Mapped[User] = relationship(back_populates="profile")

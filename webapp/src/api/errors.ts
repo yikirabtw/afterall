@@ -26,6 +26,7 @@ const MESSAGES: Record<string, string> = {
   photo_not_found: 'Фото уже удалено.',
   person_not_found: 'Этого человека уже нет в ленте.',
   match_not_found: 'Этого мэтча уже нет.',
+  presets_need_premium: 'Наборы настроек ленты — в Premium.',
   private_needs_premium: 'Закрытая пати по ссылке — в Premium.',
   boost_needs_purchase: 'Бесплатные бусты закончились. Бусты есть в Plus и Premium, купить — скоро в магазине.',
   boost_already_active: 'Уже поднято — подождите, пока закончится текущий буст.',

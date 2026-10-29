@@ -28,7 +28,8 @@ from app.db.enums import (
     UserRole,
 )
 from app.domain.age import age_on, search_limits
-from app.domain.plans import ACTIVE_LOBBY_LIMITS, PHOTO_LIMITS, REWIND_LIMITS, Plan
+from app.domain.people import FeedMode
+from app.domain.plans import ACTIVE_LOBBY_LIMITS, FEED_PRESETS_MAX, PHOTO_LIMITS, REWIND_LIMITS, Plan
 from app.domain.chats import MESSAGE_MAX
 from app.domain.time import as_utc, utcnow
 
@@ -54,6 +55,21 @@ LanguageCode = Annotated[str, StringConstraints(pattern=r"^[a-z]{2}$")]
 UtcDatetime = Annotated[datetime, AfterValidator(as_utc)]
 
 # --- Ввод ---
+
+
+class FeedPreset(BaseModel):
+    """Набор настроек ленты (Premium): режим «Кого ищу» и фильтры — включается одним нажатием."""
+
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=20)]
+    mode: FeedMode | None = None
+    game_id: int | None = None
+    need_mic: bool = False
+    play_style: PlayStyle | None = None
+    language: Annotated[str, StringConstraints(pattern=r"^[a-z]{2}$")] | None = None
+
+
+class FeedPresetsIn(BaseModel):
+    presets: list[FeedPreset] = Field(max_length=FEED_PRESETS_MAX)
 
 
 class SearchAgeIn(BaseModel):
@@ -227,6 +243,12 @@ class ProfileOut(Schema):
     is_visible: bool
     search_age_min: int | None  # None — по рамке, см. MeOut.search_age_limits
     search_age_max: int | None
+    feed_presets: list[FeedPreset] = []  # наборы настроек ленты (Premium)
+
+    @field_validator("feed_presets", mode="before")
+    @classmethod
+    def _presets_none_is_empty(cls, value: object) -> object:
+        return value or []
     reputation: int
 
 

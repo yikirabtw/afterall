@@ -24,6 +24,7 @@ export interface Profile {
   // Возраст поиска в ленте людей; null — до рамки (Me.search_age_limits)
   search_age_min: number | null
   search_age_max: number | null
+  feed_presets: FeedPreset[] // наборы настроек ленты (Premium)
   reputation: number
 }
 
@@ -352,4 +353,14 @@ export interface BoostStatus {
 /** О самом сервисе: ник бота — для ссылок-приглашений (локально его нет) */
 export interface Meta {
   bot_username: string | null
+}
+
+/** Набор настроек ленты (Premium): режим «Кого ищу» и фильтры под именем */
+export interface FeedPreset {
+  name: string
+  mode: FeedMode | null
+  game_id: number | null
+  need_mic: boolean
+  play_style: PlayStyle | null
+  language: string | null
 }

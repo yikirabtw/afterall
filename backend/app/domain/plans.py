@@ -23,6 +23,10 @@ LIKES_LIST_MAX = 100
 REWIND_LIMITS: dict[Plan, int | None] = {"free": 0, "plus": 3, "premium": None}
 REWIND_WINDOW = timedelta(days=1)
 
+# Наборы настроек ленты — только Premium
+FEED_PRESET_PLANS: tuple[Plan, ...] = ("premium",)
+FEED_PRESETS_MAX = 5
+
 # Закрытая пати по ссылке — только Premium
 PRIVATE_LOBBY_PLANS: tuple[Plan, ...] = ("premium",)
 

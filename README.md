@@ -158,6 +158,10 @@ API работает на http://127.0.0.1:8000, документация с к�
 - Контакты — только в мэтче: `discord_tag`, если указан; `username` (ник в Telegram) — только если человек
   включил «Показывать мой Telegram» (`show_telegram` в анкете). Иначе общаются в чате приложения.
 
+### Наборы настроек ленты (ветка dev, Premium)
+`PUT /api/me/feed-presets` `{"presets": [{"name", "mode", "game_id", "need_mic", "play_style", "language"}]}` —
+до 5, заменяются целиком; сохранить — Premium (иначе 403 `presets_need_premium`), очистить — всем.
+
 ### Закрытая пати (ветка dev, Premium)
 `POST /api/lobbies` с `"is_private": true` (иначе 403 `private_needs_premium`) — в ленте её нет, создатель видит
 `invite_code`. Посторонние — `GET /api/lobbies/invite/{code}`, `GET /api/lobbies/{id}?invite=…`,
