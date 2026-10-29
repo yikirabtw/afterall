@@ -92,7 +92,7 @@ async def test_plan_in_profile_and_on_cards(client, make_player, set_plan, sessi
     await set_plan("premium", user_id=other.id)
 
     mine = (await client.get("/api/me", headers=me.headers)).json()["plan"]
-    assert mine == {"plan": "free", "until": None, "photos_max": 1, "active_lobbies_max": 2}
+    assert mine == {"plan": "free", "until": None, "photos_max": 1, "active_lobbies_max": 2, "rewinds_per_day": 0}
     theirs = (await client.get("/api/me", headers=other.headers)).json()["plan"]
     assert (theirs["plan"], theirs["photos_max"], theirs["active_lobbies_max"]) == ("premium", 3, 10)
 
@@ -157,3 +157,67 @@ async def test_likes_respect_age_rules(client, make_player, set_plan):
     assert response.status_code == 404
     assert [p["user_id"] for p in (await likes(client, me))["people"]] == [adult.id]
 
+
+
+# --- Вернуть пропущенную анкету ---
+
+
+async def rewind(client, player, expect: int = 200) -> dict:
+    response = await client.post("/api/people/rewind", headers=player.headers)
+    assert response.status_code == expect, response.text
+    return response.json()
+
+
+async def test_free_cannot_rewind(client, make_player):
+    me, other = await make_player(), await make_player()
+    await like(client, me, other, "skip")
+
+    assert (await rewind(client, me, expect=403))["detail"] == "rewind_needs_plan"
+
+
+async def test_rewind_returns_last_skipped_to_feed(client, make_player, set_plan):
+    me, first, second = await make_player(), await make_player(), await make_player()
+    await set_plan("plus", user_id=me.id)
+    await like(client, me, first, "skip")
+    await like(client, me, second, "skip")
+    assert (await client.get("/api/people", headers=me.headers)).json() == []
+
+    result = await rewind(client, me)
+
+    assert (result["person"]["user_id"], result["left"]) == (second.id, 2)
+    assert [p["user_id"] for p in (await client.get("/api/people", headers=me.headers)).json()] == [second.id]
+    assert (await rewind(client, me))["person"]["user_id"] == first.id
+
+
+async def test_plus_has_three_rewinds_a_day_premium_unlimited(client, make_player, set_plan):
+    me = await make_player()
+    people = [await make_player() for _ in range(5)]
+    for person in people:
+        await like(client, me, person, "skip")
+    await set_plan("plus", user_id=me.id)
+
+    for left in (2, 1, 0):
+        assert (await rewind(client, me))["left"] == left
+    assert (await rewind(client, me, expect=429))["detail"] == "rewinds_limit"
+
+    await set_plan("premium", user_id=me.id)
+    assert (await rewind(client, me))["left"] is None
+
+
+async def test_rewind_does_not_undo_likes_or_return_blocked(client, make_player, set_plan):
+    me, liked, blocked = await make_player(), await make_player(), await make_player()
+    await set_plan("premium", user_id=me.id)
+    await like(client, me, liked)  # лайк не откатывается — он мог стать мэтчем
+    await like(client, me, blocked, "skip")
+    await client.post(f"/api/blocks/{blocked.id}", headers=me.headers)
+
+    assert (await rewind(client, me, expect=404))["detail"] == "nothing_to_rewind"
+
+
+async def test_plan_shows_rewinds_per_day(client, make_player, set_plan):
+    me = await make_player()
+    assert (await client.get("/api/me", headers=me.headers)).json()["plan"]["rewinds_per_day"] == 0
+    await set_plan("plus", user_id=me.id)
+    assert (await client.get("/api/me", headers=me.headers)).json()["plan"]["rewinds_per_day"] == 3
+    await set_plan("premium", user_id=me.id)
+    assert (await client.get("/api/me", headers=me.headers)).json()["plan"]["rewinds_per_day"] is None

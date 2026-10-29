@@ -27,7 +27,7 @@ from app.db.enums import (
     UserRole,
 )
 from app.domain.age import age_on, search_limits
-from app.domain.plans import ACTIVE_LOBBY_LIMITS, PHOTO_LIMITS, Plan
+from app.domain.plans import ACTIVE_LOBBY_LIMITS, PHOTO_LIMITS, REWIND_LIMITS, Plan
 from app.domain.chats import MESSAGE_MAX
 from app.domain.time import as_utc, utcnow
 
@@ -273,6 +273,12 @@ class PlanOut(BaseModel):
     def active_lobbies_max(self) -> int:
         return ACTIVE_LOBBY_LIMITS[self.plan]
 
+    @computed_field
+    @property
+    def rewinds_per_day(self) -> int | None:
+        """Сколько пропущенных анкет можно вернуть за сутки; None — без лимита, 0 — нельзя."""
+        return REWIND_LIMITS[self.plan]
+
 
 class SearchAgeLimitsOut(BaseModel):
     min: int
@@ -451,6 +457,11 @@ class LikesOut(BaseModel):
 
     count: int
     people: list[PersonOut] | None  # None — бесплатный тариф: сервер не отдаёт ни имён, ни фото
+
+
+class RewindOut(BaseModel):
+    person: PersonOut  # вернулась первой в ленту
+    left: int | None  # сколько возвратов ещё осталось за сутки; None — без лимита
 
 
 class ReactOut(BaseModel):

@@ -74,6 +74,13 @@ export interface PlanInfo {
   until: string | null
   photos_max: number
   active_lobbies_max: number
+  rewinds_per_day: number | null // вернуть пропущенную анкету: 0 — нельзя, null — без лимита
+}
+
+/** Вернувшаяся анкета и сколько возвратов ещё осталось за сутки (null — без лимита) */
+export interface RewindResult {
+  person: Person
+  left: number | null
 }
 
 export interface GameRank {

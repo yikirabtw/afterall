@@ -8,17 +8,27 @@ from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Response, status
-from sqlalchemy import ColumnElement, or_, select
+from sqlalchemy import ColumnElement, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import NotifierDep, OnboardedUser, PhotoUrl, SessionDep
-from app.api.schemas import LanguageCode, LikesOut, MatchOut, PersonGameOut, PersonOut, PhotoOut, ReactIn, ReactOut
+from app.api.schemas import (
+    LanguageCode,
+    LikesOut,
+    MatchOut,
+    PersonGameOut,
+    PersonOut,
+    PhotoOut,
+    ReactIn,
+    ReactOut,
+    RewindOut,
+)
 from app.db.enums import MatchSource, PlayStyle, ReactionKind
-from app.db.models import Game, GameRank, Match, Profile, Reaction, User, UserGame
+from app.db.models import Game, GameRank, Match, Profile, Reaction, Rewind, User, UserGame
 from app.domain.age import age_on, search_range, search_range_fits, years_ago
 from app.domain.people import CANDIDATE_POOL, SKIP_COOLDOWN, Compatibility, Traits, compatibility
-from app.domain.plans import LIKES_LIST_MAX, LIKES_LIST_PLANS, Plan
+from app.domain.plans import LIKES_LIST_MAX, LIKES_LIST_PLANS, REWIND_LIMITS, REWIND_WINDOW, Plan
 from app.domain.time import utcnow
 from app.bot import texts
 from app.services.notify import Note
@@ -235,6 +245,53 @@ async def who_liked_me(user: OnboardedUser, session: SessionDep, photo_url: Phot
         match = compatibility(me, _traits(person, tiers), names)
         shown.append(_person_out(person, match, photo_url, today, plans.get(person.id, "free")))
     return LikesOut(count=len(people), people=shown)
+
+
+@router.post("/people/rewind", response_model=RewindOut)
+async def rewind(user: OnboardedUser, session: SessionDep, photo_url: PhotoUrl) -> RewindOut:
+    """Вернуть последнюю пропущенную анкету — она снова первая в ленте. Только пропуск: лайк мог уже стать
+    мэтчем, и отменять его за второго человека нельзя. Plus — 3 раза за сутки, Premium — без лимита."""
+    now = utcnow()
+    plan, _ = await plan_of(session, user.id, now)
+    limit = REWIND_LIMITS[plan]
+    if limit == 0:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="rewind_needs_plan")
+    used = await session.scalar(
+        select(func.count(Rewind.id)).where(Rewind.user_id == user.id, Rewind.created_at > now - REWIND_WINDOW)
+    )
+    if limit is not None and used >= limit:
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, detail="rewinds_limit")
+
+    profile = await _my_profile(session, user, now)
+    # Последний пропуск того, кто мне всё ещё виден (не заблокирован, не скрыт, подходит по возрасту)
+    row = (
+        await session.execute(
+            select(Reaction, User)
+            .join(User, User.id == Reaction.to_user_id)
+            .join(Profile, Profile.user_id == User.id)
+            .where(
+                Reaction.from_user_id == user.id,
+                Reaction.kind == ReactionKind.SKIP,
+                Reaction.created_at > now - SKIP_COOLDOWN,
+                *_visible_people(user, profile, now),
+            )
+            .options(*PERSON_OPTIONS)
+            .order_by(Reaction.created_at.desc(), Reaction.id.desc())
+            .limit(1)
+        )
+    ).first()
+    if row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="nothing_to_rewind")
+    reaction, person = row
+    await session.delete(reaction)
+    session.add(Rewind(user_id=user.id, person_id=person.id, created_at=now))
+    await session.commit()
+
+    tiers, names = await _reference(session)
+    me = _traits(await _load_person(session, user.id), tiers)
+    person_plan = (await plans_of(session, [person.id], now)).get(person.id, "free")
+    out = _person_out(person, compatibility(me, _traits(person, tiers), names), photo_url, now.date(), person_plan)
+    return RewindOut(person=out, left=None if limit is None else limit - used - 1)
 
 
 @router.post("/people/{person_id}/react", response_model=ReactOut)

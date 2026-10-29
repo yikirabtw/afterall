@@ -20,6 +20,7 @@ import type {
   ProfileInput,
   ReactionKind,
   ReportInput,
+  RewindResult,
   UserGameInput,
 } from './types'
 
@@ -115,6 +116,8 @@ export const api = {
   matches: () => request<Match[]>('GET', '/matches'),
   // Кто лайкнул: число — всем, список — с Plus и Premium
   likes: () => request<LikesInfo>('GET', '/people/likes'),
+  // Вернуть последнюю пропущенную анкету: Plus — 3 в сутки, Premium — без лимита
+  rewind: () => request<RewindResult>('POST', '/people/rewind'),
 
   // Жалоба сразу блокирует человека и уходит модераторам; блокировка — взаимная невидимость
   report: (input: ReportInput) => request<void>('POST', '/reports', input),

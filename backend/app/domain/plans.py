@@ -19,5 +19,9 @@ ACTIVE_LOBBY_LIMITS: dict[Plan, int] = {"free": 2, "plus": 5, "premium": 10}
 LIKES_LIST_PLANS: tuple[Plan, ...] = ("plus", "premium")
 LIKES_LIST_MAX = 100
 
+# Вернуть пропущенную анкету: бесплатно — нет, Plus — 3 за сутки, Premium — без лимита (None)
+REWIND_LIMITS: dict[Plan, int | None] = {"free": 0, "plus": 3, "premium": None}
+REWIND_WINDOW = timedelta(days=1)
+
 GRANT_DEFAULT = timedelta(days=30)  # срок подписки, выданной админом без указания дней
 GRANT_MAX_DAYS = 3650

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import CheckConstraint, ForeignKey, UniqueConstraint
+from sqlalchemy import CheckConstraint, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, BigIntPK, CreatedAtMixin, str_enum
@@ -48,3 +48,15 @@ class Block(CreatedAtMixin, Base):
 
     blocker_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     blocked_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True)
+
+
+class Rewind(CreatedAtMixin, Base):
+    """Возврат пропущенной анкеты (Plus — 3 в сутки, Premium — без лимита). Журнал — чтобы считать лимит."""
+
+    __tablename__ = "rewinds"
+    __table_args__ = (Index("ix_rewinds_user_time", "user_id", "created_at"),)
+
+    id: Mapped[int] = mapped_column(BigIntPK, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    person_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+

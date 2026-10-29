@@ -4,7 +4,7 @@ from app.db.models.chat import Chat, ChatMessage, ChatRead
 from app.db.models.game import Game, GameRank, GameRole, UserGame, user_game_roles
 from app.db.models.lobby import Lobby, LobbyMember
 from app.db.models.moderation import ModerationAction, Report, Review
-from app.db.models.social import Block, Match, Reaction
+from app.db.models.social import Block, Match, Reaction, Rewind
 from app.db.models.user import Profile, User, UserAvailability, UserPhoto
 
 __all__ = [
@@ -23,6 +23,7 @@ __all__ = [
     "Reaction",
     "Report",
     "Review",
+    "Rewind",
     "Subscription",
     "User",
     "UserAvailability",

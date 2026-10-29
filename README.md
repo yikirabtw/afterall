@@ -165,6 +165,8 @@ API работает на http://127.0.0.1:8000, документация с к�
 `/premium @ник 30`, `/premium <Telegram ID>`, `/plus …`, `/free @ник` — снять; `/premium ?` — подсказка.
 `GET /api/people/likes` — кто поставил мне ♥, а я ещё не ответил (правила как у ленты): `{"count", "people"}`,
 `people` — только с Plus и Premium, бесплатно `null` (ни имён, ни фото).
+`POST /api/people/rewind` — вернуть последнюю пропущенную анкету (лайки не откатываются): `{"person", "left"}`;
+бесплатно — 403 `rewind_needs_plan`, Plus — 3 за сутки (потом 429 `rewinds_limit`), Premium — без лимита.
 
 ### Чаты
 | Маршрут | Что делает |

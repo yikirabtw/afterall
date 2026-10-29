@@ -9,8 +9,9 @@ import PeopleFilters from '../components/PeopleFilters.vue'
 import PersonCard from '../components/PersonCard.vue'
 import WireCubes from '../components/WireCubes.vue'
 import { formatPeople } from '../format'
-import { openFrom } from '../router'
+import { openFrom, router } from '../router'
 import { session, setMe } from '../stores/session'
+import { shopTab } from '../stores/ui'
 import { haptic } from '../telegram'
 
 // «Нравится» и «Дальше» — только кнопками: свайп по анкете листает её фото, и случайно пролайкать нельзя
@@ -147,11 +148,64 @@ function openMatches(event: MouseEvent) {
 // --- Улёт карточки после решения: вправо — «Нравится», влево — «Дальше», со штампом ---
 
 const flyX = ref(0)
+const entering = ref(false) // вернувшаяся анкета ставится за левый край без анимации, потом въезжает
 
 const cardStyle = computed(() => ({
   transform: `translateX(${flyX.value}px) rotate(${flyX.value / 18}deg)`,
-  transition: `transform ${FLY_OUT_MS}ms ease`,
+  transition: entering.value ? 'none' : `transform ${FLY_OUT_MS}ms ease`,
 }))
+
+// --- Вернуть пропущенную анкету: Plus — 3 раза в сутки, Premium — без лимита, бесплатно — подсказка ---
+
+const rewindsLeft = ref<number | null>(null) // что ответил сервер после последнего возврата
+const rewindHint = ref('')
+let hintTimer = 0
+
+const canRewind = computed(() => session.me!.plan.rewinds_per_day !== 0)
+
+function showHint(text: string) {
+  rewindHint.value = text
+  window.clearTimeout(hintTimer)
+  hintTimer = window.setTimeout(() => (rewindHint.value = ''), 5000)
+}
+
+async function rewindLast() {
+  if (busy.value) return
+  haptic.tap()
+  if (!canRewind.value) {
+    showHint('Вернуть анкету можно с Plus (3 раза в день) и Premium.')
+    return
+  }
+  busy.value = true
+  try {
+    const result = await api.rewind()
+    rewindsLeft.value = result.left
+    queue.value = [result.person, ...queue.value.filter((p) => p.user_id !== result.person.user_id)]
+    exhausted.value = false
+    // Въезд слева — туда, куда анкета улетела при пропуске
+    entering.value = true
+    flyX.value = -window.innerWidth
+    await nextTick()
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        entering.value = false
+        flyX.value = 0
+      }),
+    )
+    haptic.success()
+  } catch (e) {
+    showHint(errorMessage(e))
+    haptic.error()
+  } finally {
+    busy.value = false
+  }
+}
+
+function openPlans() {
+  haptic.tap()
+  shopTab.value = 'plans'
+  void router.push('/shop')
+}
 const likeOpacity = computed(() => Math.min(Math.max(flyX.value / STAMP_DISTANCE, 0), 1))
 const skipOpacity = computed(() => Math.min(Math.max(-flyX.value / STAMP_DISTANCE, 0), 1))
 
@@ -248,13 +302,38 @@ async function decide(kind: ReactionKind) {
       </div>
     </section>
 
-    <div v-if="current" class="people__actions">
-      <button class="round round--skip" type="button" aria-label="Дальше" :disabled="busy" @click="decide('skip')">
+    <p v-if="rewindHint" class="hint people__hint" role="status">
+      {{ rewindHint }}
+      <button v-if="!canRewind" class="btn btn-ghost btn-small" type="button" @click="openPlans">К подпискам</button>
+    </p>
+
+    <div class="people__actions">
+      <button
+        class="round round--small round--rewind"
+        :class="{ 'round--locked': !canRewind }"
+        type="button"
+        aria-label="Вернуть пропущенную анкету"
+        :disabled="busy"
+        @click="rewindLast"
+      >
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+          <path
+            d="M9 14L4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <span v-if="rewindsLeft !== null" class="round__count">{{ rewindsLeft }}</span>
+      </button>
+      <button v-if="current" class="round round--skip" type="button" aria-label="Дальше" :disabled="busy" @click="decide('skip')">
         <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
           <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
         </svg>
       </button>
-      <button class="round round--like" type="button" aria-label="Нравится" :disabled="busy" @click="decide('like')">
+      <button v-if="current" class="round round--like" type="button" aria-label="Нравится" :disabled="busy" @click="decide('like')">
         <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true">
           <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill="currentColor" />
         </svg>
@@ -549,6 +628,51 @@ async function decide(kind: ReactionKind) {
 }
 
 .people__error {
+  text-align: center;
+}
+
+/* «Вернуть» — маленькая плитка слева; без подписки — приглушена, нажатие объясняет, где это есть */
+.people__actions {
+  align-items: center;
+}
+
+.round--small {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 15px;
+  background: var(--card);
+  box-shadow: var(--edge-light);
+  color: var(--text);
+}
+
+.round--rewind:active {
+  color: var(--warn);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--warn) 45%, transparent);
+}
+
+.round--locked {
+  color: var(--text-2);
+  opacity: 0.7;
+}
+
+.round__count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 5px;
+  background: var(--raised);
+  border: 1px solid var(--line-strong);
+  font-family: var(--font-pixel);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.people__hint {
+  margin: 8px 0 0;
   text-align: center;
 }
 </style>
