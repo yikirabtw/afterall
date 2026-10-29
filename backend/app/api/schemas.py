@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Annotated, Self
+from typing import Annotated, Literal, Self
 from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -11,6 +11,7 @@ from pydantic import (
     Field,
     StringConstraints,
     ValidationInfo,
+    computed_field,
     field_validator,
     model_validator,
 )
@@ -22,10 +23,12 @@ from app.db.enums import (
     LookingFor,
     MemberStatus,
     PlayStyle,
-    ReactionKind,
+    ReportReason,
     UserRole,
 )
-from app.domain.time import as_utc
+from app.domain.age import age_on, search_limits
+from app.domain.chats import MESSAGE_MAX
+from app.domain.time import as_utc, utcnow
 
 
 class Schema(BaseModel):
@@ -49,6 +52,13 @@ LanguageCode = Annotated[str, StringConstraints(pattern=r"^[a-z]{2}$")]
 UtcDatetime = Annotated[datetime, AfterValidator(as_utc)]
 
 # --- Ввод ---
+
+
+class SearchAgeIn(BaseModel):
+    """Возраст поиска в ленте людей. None — до самой рамки (у взрослых сверху — без границы)."""
+
+    age_min: Annotated[int, Field(ge=0, le=150)] | None = None
+    age_max: Annotated[int, Field(ge=0, le=150)] | None = None
 
 
 class BirthDateIn(BaseModel):
@@ -78,6 +88,7 @@ class ProfileIn(BaseModel):
     city: ShortText | None = None
     timezone: str = "Europe/Moscow"
     discord_tag: ShortText | None = None
+    show_telegram: bool = False  # показывать ли ник в Telegram мэтчам и участникам пати
     is_visible: bool = True
 
     @field_validator("languages")
@@ -209,7 +220,10 @@ class ProfileOut(Schema):
     city: str | None
     timezone: str
     discord_tag: str | None
+    show_telegram: bool
     is_visible: bool
+    search_age_min: int | None  # None — по рамке, см. MeOut.search_age_limits
+    search_age_max: int | None
     reputation: int
 
 
@@ -242,6 +256,11 @@ class PhotoOut(Schema):
         return self
 
 
+class SearchAgeLimitsOut(BaseModel):
+    min: int
+    max: int | None  # None — без верхней границы (у взрослых)
+
+
 class MeOut(Schema):
     """Свои данные. Чужие профили отдаются другой схемой — без даты рождения и контактов."""
 
@@ -258,6 +277,15 @@ class MeOut(Schema):
     photos: list[PhotoOut]  # первое — главное
     games: list[UserGameOut]
     availability: list[AvailabilitySlotOut]
+
+    @computed_field
+    @property
+    def search_age_limits(self) -> SearchAgeLimitsOut | None:
+        """Рамки ползунка «Возраст» в ленте людей — дальше них выбрать нельзя."""
+        if self.birth_date is None:
+            return None
+        low, high = search_limits(age_on(self.birth_date, utcnow().date()))
+        return SearchAgeLimitsOut(min=low, max=high)
 
 
 class GameRankOut(Schema):
@@ -381,7 +409,7 @@ class PersonOut(BaseModel):
 
 
 class ReactIn(BaseModel):
-    kind: ReactionKind
+    kind: Literal["like", "skip"]  # «unmatch» ставит только удаление мэтча
 
 
 class MatchOut(BaseModel):
@@ -399,3 +427,63 @@ class MatchOut(BaseModel):
 
 class ReactOut(BaseModel):
     match: MatchOut | None  # не None — лайк оказался взаимным
+
+
+# --- Чаты ---
+
+ChatKind = Literal["direct", "lobby"]  # direct — личный после мэтча, lobby — общий у пати
+
+
+class MessageIn(BaseModel):
+    body: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=MESSAGE_MAX)]
+
+
+class ChatMessageOut(BaseModel):
+    id: int
+    sender_id: int
+    sender_name: str
+    mine: bool
+    body: str
+    created_at: UtcDatetime
+
+
+class ChatHeadOut(BaseModel):
+    """О ком или о чём чат: для шапки переписки и строки в списке."""
+
+    kind: ChatKind
+    ref: int  # direct — id собеседника, lobby — id пати
+    title: str
+    photo: PhotoOut | None  # direct — главное фото собеседника
+    game_id: int | None  # lobby — игра пати (цвет огонька)
+    can_send: bool  # у закончившейся пати чат только для чтения
+
+
+class ChatSummaryOut(ChatHeadOut):
+    last_message: ChatMessageOut | None
+    unread: int
+    updated_at: UtcDatetime  # для порядка в списке: последнее сообщение или начало переписки
+
+
+class ChatOut(ChatHeadOut):
+    messages: list[ChatMessageOut]  # по возрастанию id
+    has_more: bool  # есть ли сообщения старше первого из выданных
+
+
+# --- Жалобы и блокировки ---
+
+
+class ReportIn(BaseModel):
+    """Жалоба на человека из мэтчей или из общей пати (тогда lobby_id). Жалоба сразу блокирует его для автора."""
+
+    user_id: int
+    reason: ReportReason
+    comment: Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)] | None = None
+    lobby_id: int | None = None
+
+
+class BlockedOut(BaseModel):
+    user_id: int
+    display_name: str
+    photo: PhotoOut | None
+    blocked_at: UtcDatetime
+

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 
 import { api } from '../api/client'
 import { errorMessage } from '../api/errors'
@@ -8,9 +8,12 @@ import MatchOverlay from '../components/MatchOverlay.vue'
 import PeopleFilters from '../components/PeopleFilters.vue'
 import PersonCard from '../components/PersonCard.vue'
 import WireCubes from '../components/WireCubes.vue'
+import { openFrom } from '../router'
+import { session, setMe } from '../stores/session'
 import { haptic } from '../telegram'
 
-const SWIPE_THRESHOLD = 90 // px — дальше этого отпущенная анкета улетает
+// «Нравится» и «Дальше» — только кнопками: свайп по анкете листает её фото, и случайно пролайкать нельзя
+const STAMP_DISTANCE = 90 // px полёта карточки, за которые штамп проявляется полностью
 const FLY_OUT_MS = 220
 const FILTERS_KEY = 'people-filters'
 
@@ -24,7 +27,14 @@ const newMatch = ref<Match | null>(null)
 
 const filtersOpen = ref(false)
 const filters = ref<PeopleParams>(loadFilters())
-const filtersActive = computed(() => Object.values(filters.value).some((value) => value !== undefined && value !== false))
+// Суженный возраст — тоже фильтр: он хранится на сервере, а не в filters
+const ageNarrowed = computed(() => {
+  const profile = session.me?.profile
+  return profile?.search_age_min != null || profile?.search_age_max != null
+})
+const filtersActive = computed(
+  () => ageNarrowed.value || Object.values(filters.value).some((value) => value !== undefined && value !== false),
+)
 
 const current = computed(() => queue.value[0] ?? null)
 const next = computed(() => queue.value[1] ?? null)
@@ -76,6 +86,19 @@ function applyFilters(value: PeopleParams) {
   void reload()
 }
 
+// «Сбросить фильтры» из пустой ленты — вместе с возрастом
+async function resetFilters() {
+  if (ageNarrowed.value) {
+    try {
+      setMe(await api.saveSearchAge(null, null))
+    } catch (e) {
+      error.value = errorMessage(e)
+      return
+    }
+  }
+  applyFilters({})
+}
+
 onMounted(async () => {
   await loadMore()
   try {
@@ -85,66 +108,42 @@ onMounted(async () => {
   }
 })
 
-// --- Свайп ---
+// --- Кнопка мэтчей: сердце «бьётся», пока мэтчи есть; новый мэтч — сердце подпрыгивает ---
 
-const dragX = ref(0)
-const dragging = ref(false)
-let startX = 0
-let moved = false
+const POP_MS = 700
+const heartPop = ref(false)
+
+// Только при новом мэтче из ленты, а не когда счётчик подгрузился при открытии экрана
+async function popHeart() {
+  heartPop.value = false
+  await nextTick() // снять класс и поставить снова — чтобы анимация проигралась заново
+  heartPop.value = true
+  window.setTimeout(() => (heartPop.value = false), POP_MS)
+}
+
+// Экран мэтчей раскрывается кругом из самой кнопки, «Назад» сворачивает его обратно
+function openMatches(event: MouseEvent) {
+  haptic.tap()
+  openFrom(event.currentTarget as Element, '/matches')
+}
+
+// --- Улёт карточки после решения: вправо — «Нравится», влево — «Дальше», со штампом ---
+
+const flyX = ref(0)
 
 const cardStyle = computed(() => ({
-  transform: `translateX(${dragX.value}px) rotate(${dragX.value / 18}deg)`,
-  transition: dragging.value ? 'none' : `transform ${FLY_OUT_MS}ms ease`,
+  transform: `translateX(${flyX.value}px) rotate(${flyX.value / 18}deg)`,
+  transition: `transform ${FLY_OUT_MS}ms ease`,
 }))
-const likeOpacity = computed(() => Math.min(Math.max(dragX.value / SWIPE_THRESHOLD, 0), 1))
-const skipOpacity = computed(() => Math.min(Math.max(-dragX.value / SWIPE_THRESHOLD, 0), 1))
-
-function onPointerDown(event: PointerEvent) {
-  if (busy.value || !current.value) return
-  dragging.value = true
-  moved = false
-  startX = event.clientX
-  // Слушаем окно, а не карточку: палец может уйти за её край
-  window.addEventListener('pointermove', onPointerMove)
-  window.addEventListener('pointerup', onPointerUp)
-  window.addEventListener('pointercancel', onPointerUp)
-}
-
-function onPointerMove(event: PointerEvent) {
-  dragX.value = event.clientX - startX
-  if (Math.abs(dragX.value) > 8) moved = true
-}
-
-function stopListening() {
-  window.removeEventListener('pointermove', onPointerMove)
-  window.removeEventListener('pointerup', onPointerUp)
-  window.removeEventListener('pointercancel', onPointerUp)
-}
-
-function onPointerUp() {
-  stopListening()
-  dragging.value = false
-  if (dragX.value > SWIPE_THRESHOLD) void decide('like')
-  else if (dragX.value < -SWIPE_THRESHOLD) void decide('skip')
-  else dragX.value = 0
-}
-
-// Если анкету тащили — это свайп, а не нажатие: фото не перелистываем
-function onClickCapture(event: MouseEvent) {
-  if (moved) {
-    event.stopPropagation()
-    moved = false
-  }
-}
-
-onBeforeUnmount(stopListening)
+const likeOpacity = computed(() => Math.min(Math.max(flyX.value / STAMP_DISTANCE, 0), 1))
+const skipOpacity = computed(() => Math.min(Math.max(-flyX.value / STAMP_DISTANCE, 0), 1))
 
 async function decide(kind: ReactionKind) {
   const person = current.value
   if (!person || busy.value) return
   busy.value = true
   haptic.tap()
-  dragX.value = kind === 'like' ? window.innerWidth : -window.innerWidth
+  flyX.value = kind === 'like' ? window.innerWidth : -window.innerWidth
   try {
     const [result] = await Promise.all([
       api.react(person.user_id, kind),
@@ -154,6 +153,7 @@ async function decide(kind: ReactionKind) {
     if (result.match) {
       newMatch.value = result.match
       matchesCount.value += 1
+      void popHeart()
       haptic.success()
     }
     if (queue.value.length < 3) void loadMore()
@@ -161,7 +161,7 @@ async function decide(kind: ReactionKind) {
     error.value = errorMessage(e)
     haptic.error()
   } finally {
-    dragX.value = 0
+    flyX.value = 0
     busy.value = false
   }
 }
@@ -172,7 +172,13 @@ async function decide(kind: ReactionKind) {
     <header class="page-top people__top">
       <h1 class="page-title">Лента</h1>
       <div class="people__tools">
-        <RouterLink to="/matches" class="icon-btn" aria-label="Мэтчи" @click="haptic.tap()">
+        <button
+          class="icon-btn heart-btn"
+          :class="{ 'heart-btn--beat': matchesCount > 0, 'heart-btn--pop': heartPop }"
+          type="button"
+          aria-label="Мэтчи"
+          @click="openMatches"
+        >
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
             <path
               d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"
@@ -180,7 +186,7 @@ async function decide(kind: ReactionKind) {
             />
           </svg>
           <span v-if="matchesCount" class="icon-btn__count">{{ matchesCount }}</span>
-        </RouterLink>
+        </button>
         <button class="icon-btn" type="button" aria-label="Фильтры" @click="(filtersOpen = true), haptic.tap()">
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
             <circle cx="12" cy="5" r="2" fill="currentColor" />
@@ -194,14 +200,7 @@ async function decide(kind: ReactionKind) {
 
     <section class="deck">
       <PersonCard v-if="next" :key="`under-${next.user_id}`" :person="next" class="deck__under" />
-      <div
-        v-if="current"
-        :key="current.user_id"
-        class="deck__top"
-        :style="cardStyle"
-        @pointerdown="onPointerDown"
-        @click.capture="onClickCapture"
-      >
+      <div v-if="current" :key="current.user_id" class="deck__top" :style="cardStyle">
         <PersonCard :person="current" />
         <span class="stamp stamp--like" :style="{ opacity: likeOpacity }">Нравится</span>
         <span class="stamp stamp--skip" :style="{ opacity: skipOpacity }">Дальше</span>
@@ -219,7 +218,7 @@ async function decide(kind: ReactionKind) {
         <p class="hint">
           {{ filtersActive ? 'Попробуй ослабить фильтры.' : 'Загляни позже — пропущенные анкеты вернутся через пару дней.' }}
         </p>
-        <button v-if="filtersActive" class="btn btn-ghost" type="button" @click="applyFilters({})">Сбросить фильтры</button>
+        <button v-if="filtersActive" class="btn btn-ghost" type="button" @click="resetFilters">Сбросить фильтры</button>
       </div>
     </section>
 
@@ -298,6 +297,79 @@ async function decide(kind: ReactionKind) {
   box-shadow: var(--glow-1);
 }
 
+/* Сердце мэтчей: спокойное «тук-тук» раз в несколько секунд и прыжок со вспышкой при новом мэтче */
+.heart-btn svg {
+  transform-origin: 50% 55%;
+}
+
+.heart-btn--beat svg {
+  animation: heartbeat 2.8s ease-in-out infinite;
+}
+
+.heart-btn--pop svg {
+  animation: heart-pop 0.7s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+.heart-btn--pop {
+  box-shadow: var(--glow-1), var(--glow-2);
+}
+
+.heart-btn--pop .icon-btn__count {
+  animation: count-pop 0.7s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+@keyframes heartbeat {
+  0%,
+  30%,
+  100% {
+    transform: scale(1);
+  }
+
+  8% {
+    transform: scale(1.16);
+  }
+
+  16% {
+    transform: scale(1);
+  }
+
+  23% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes heart-pop {
+  0% {
+    transform: scale(1);
+  }
+
+  35% {
+    transform: scale(1.45) rotate(-8deg);
+  }
+
+  70% {
+    transform: scale(0.92);
+  }
+}
+
+@keyframes count-pop {
+  0% {
+    transform: scale(0.4);
+  }
+
+  50% {
+    transform: scale(1.3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heart-btn--beat svg,
+  .heart-btn--pop svg,
+  .heart-btn--pop .icon-btn__count {
+    animation: none;
+  }
+}
+
 .icon-btn__dot {
   position: absolute;
   top: 6px;
@@ -327,10 +399,6 @@ async function decide(kind: ReactionKind) {
   opacity: 0.6;
 }
 
-.deck__top {
-  touch-action: pan-y;
-  cursor: grab;
-}
 
 /* Штампы при свайпе — пиксельные, светятся своим цветом */
 .stamp {

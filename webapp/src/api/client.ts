@@ -1,5 +1,10 @@
 import { getInitData } from '../telegram'
 import type {
+  BlockedUser,
+  Chat,
+  ChatKind,
+  ChatMessage,
+  ChatSummary,
   FeedParams,
   Game,
   Lobby,
@@ -13,6 +18,7 @@ import type {
   Person,
   ProfileInput,
   ReactionKind,
+  ReportInput,
   UserGameInput,
 } from './types'
 
@@ -65,6 +71,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     }
     throw new ApiError(response.status, errorCode(detail), detail)
   }
+  if (response.status === 204) return undefined as T // «готово, без тела» — например, удаление
   return (await response.json()) as T
 }
 
@@ -88,6 +95,9 @@ export const api = {
   setBirthDate: (birthDate: string) => request<Me>('PUT', '/me/birth-date', { birth_date: birthDate }),
   saveProfile: (profile: ProfileInput) => request<Me>('PUT', '/me/profile', profile),
   saveGames: (games: UserGameInput[]) => request<Me>('PUT', '/me/games', { games }),
+  // Возраст поиска в ленте людей, взаимный; null — до самой рамки
+  saveSearchAge: (min: number | null, max: number | null) =>
+    request<Me>('PUT', '/me/search-age', { age_min: min, age_max: max }),
   completeOnboarding: () => request<Me>('POST', '/me/onboarding/complete'),
 
   uploadPhoto: (file: File) => {
@@ -102,6 +112,20 @@ export const api = {
   react: (userId: number, kind: ReactionKind) =>
     request<{ match: Match | null }>('POST', `/people/${userId}/react`, { kind }),
   matches: () => request<Match[]>('GET', '/matches'),
+
+  // Жалоба сразу блокирует человека и уходит модераторам; блокировка — взаимная невидимость
+  report: (input: ReportInput) => request<void>('POST', '/reports', input),
+  block: (userId: number) => request<void>('POST', `/blocks/${userId}`),
+  unblock: (userId: number) => request<void>('DELETE', `/blocks/${userId}`),
+  blocks: () => request<BlockedUser[]>('GET', '/blocks'),
+  // Мэтч удаляется у обоих вместе с личным чатом; человек больше не появится в ленте
+  deleteMatch: (userId: number) => request<void>('DELETE', `/matches/${userId}`),
+
+  chats: () => request<ChatSummary[]>('GET', '/chats'),
+  chat: (kind: ChatKind, ref: number, params: { after?: number; before?: number } = {}) =>
+    request<Chat>('GET', `/chats/${kind}/${ref}?${toQuery(params)}`),
+  sendMessage: (kind: ChatKind, ref: number, body: string) =>
+    request<ChatMessage>('POST', `/chats/${kind}/${ref}/messages`, { body }),
 
   feed: (params: FeedParams) => request<LobbyFeed>('GET', `/lobbies?${toQuery(params)}`),
   myLobbies: () => request<Lobby[]>('GET', '/lobbies/mine'),

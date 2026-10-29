@@ -1,8 +1,10 @@
 // Отражающая карточка по мотивам ReflectiveCard из React Bits, скрещённая с нашим стилем.
 // Вместо вебкамеры отражается «полоса света» из референсов (assets/reflection.jpg, уже размыта):
 // при прокрутке отражение скользит по карточке, как свет по металлу; курсор или палец наклоняют
-// карточку (tiltStrength°) и зажигают блик (glare). Слои — в разметке карточки, директива двигает их
-// через CSS-переменные: --rx/--ry — наклон, --ref-x/--ref-y — сдвиг отражения, --gx/--gy/--glare — блик.
+// карточку (tiltStrength°) и зажигают блик (glare). Слои — в разметке карточки:
+// [data-reflect="reflection"] и [data-reflect="sheen"] директива двигает напрямую через transform
+// (только эти два слоя — без пересчёта стилей всей карточки при прокрутке, важно для слабых телефонов);
+// наклон карточки и блик — CSS-переменные --rx/--ry и --gx/--gy/--glare.
 
 import type { Directive } from 'vue'
 
@@ -19,17 +21,37 @@ const still = () => window.matchMedia('(prefers-reduced-motion: reduce)').matche
 
 // --- Прокрутка: один слушатель на все карточки, считаем только видимые ---
 
+interface State {
+  options: ReflectOptions
+  scroll: number // -0.5 — карточка внизу экрана, 0.5 — вверху
+  tiltX: number // сдвиг отражения против наклона, px
+  tiltY: number
+  reflection: HTMLElement | null
+  sheen: HTMLElement | null
+}
+
 const visible = new Set<HTMLElement>()
-const options = new WeakMap<HTMLElement, ReflectOptions>()
+const states = new WeakMap<HTMLElement, State>()
 let frame = 0
+
+/** Сдвинуть слои отражения: при прокрутке — вдоль карточки, при наклоне — против него */
+function paint(el: HTMLElement) {
+  const state = states.get(el)
+  if (!state) return
+  const y = state.scroll * state.options.travel + state.tiltY
+  if (state.reflection) state.reflection.style.transform = `translate3d(${state.tiltX.toFixed(1)}px, ${y.toFixed(1)}px, 0) rotate(-8deg)`
+  if (state.sheen) state.sheen.style.transform = `translate3d(${(state.scroll * 160).toFixed(1)}%, 0, 0)`
+}
 
 function updateScroll() {
   frame = 0
   for (const el of visible) {
+    const state = states.get(el)
+    if (!state) continue
     const box = el.getBoundingClientRect()
     // 0 — карточка вверху экрана, 1 — внизу
-    const progress = (box.top + box.height / 2) / window.innerHeight
-    el.style.setProperty('--ref-scroll', (0.5 - progress).toFixed(3))
+    state.scroll = 0.5 - (box.top + box.height / 2) / window.innerHeight
+    paint(el)
   }
 }
 
@@ -65,15 +87,18 @@ function listen(on: boolean) {
 
 function tilt(event: PointerEvent) {
   const el = event.currentTarget as HTMLElement
-  const opts = options.get(el) ?? DEFAULTS
+  const state = states.get(el)
+  if (!state) return
+  const opts = state.options
   const box = el.getBoundingClientRect()
   const x = Math.min(Math.max((event.clientX - box.left) / box.width, 0), 1)
   const y = Math.min(Math.max((event.clientY - box.top) / box.height, 0), 1)
   el.classList.add('is-tilting')
   el.style.setProperty('--rx', `${((0.5 - y) * 2 * opts.tiltStrength).toFixed(2)}deg`)
   el.style.setProperty('--ry', `${((x - 0.5) * 2 * opts.tiltStrength).toFixed(2)}deg`)
-  el.style.setProperty('--tilt-x', ((0.5 - x) * PARALLAX).toFixed(1))
-  el.style.setProperty('--tilt-y', ((0.5 - y) * PARALLAX).toFixed(1))
+  state.tiltX = (0.5 - x) * PARALLAX
+  state.tiltY = (0.5 - y) * PARALLAX
+  paint(el)
   el.style.setProperty('--gx', `${(x * 100).toFixed(1)}%`)
   el.style.setProperty('--gy', `${(y * 100).toFixed(1)}%`)
   el.style.setProperty('--glare', String(opts.glare))
@@ -82,7 +107,13 @@ function tilt(event: PointerEvent) {
 function rest(event: PointerEvent) {
   const el = event.currentTarget as HTMLElement
   el.classList.remove('is-tilting')
-  for (const name of ['--rx', '--ry', '--tilt-x', '--tilt-y', '--glare']) el.style.removeProperty(name)
+  for (const name of ['--rx', '--ry', '--glare']) el.style.removeProperty(name)
+  const state = states.get(el)
+  if (state) {
+    state.tiltX = 0
+    state.tiltY = 0
+    paint(el)
+  }
 }
 
 function onPointerMove(event: PointerEvent) {
@@ -92,9 +123,15 @@ function onPointerMove(event: PointerEvent) {
 
 export const vReflect: Directive<HTMLElement, Partial<ReflectOptions> | undefined> = {
   mounted(el, binding) {
-    const opts = { ...DEFAULTS, ...binding.value }
-    options.set(el, opts)
-    el.style.setProperty('--ref-travel', String(opts.travel))
+    states.set(el, {
+      options: { ...DEFAULTS, ...binding.value },
+      scroll: 0,
+      tiltX: 0,
+      tiltY: 0,
+      reflection: el.querySelector<HTMLElement>('[data-reflect="reflection"]'),
+      sheen: el.querySelector<HTMLElement>('[data-reflect="sheen"]'),
+    })
+    paint(el)
     if (still()) return
     el.addEventListener('pointerdown', tilt)
     el.addEventListener('pointermove', onPointerMove)
@@ -107,8 +144,8 @@ export const vReflect: Directive<HTMLElement, Partial<ReflectOptions> | undefine
     onScroll()
   },
   unmounted(el) {
-    if (!options.has(el)) return
-    options.delete(el)
+    if (!states.has(el)) return
+    states.delete(el)
     watcher?.unobserve(el)
     visible.delete(el)
     el.removeEventListener('pointerdown', tilt)

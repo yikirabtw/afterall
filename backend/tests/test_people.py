@@ -7,6 +7,7 @@ from sqlalchemy import update
 
 from app.db.enums import AgeGroup, LookingFor, PlayStyle, ReactionKind
 from app.db.models import Block, Reaction
+from app.domain.age import can_meet, search_limits
 from app.domain.people import Traits, compatibility
 from app.domain.time import utcnow
 
@@ -75,7 +76,7 @@ def test_far_rank_gives_no_rank_bonus():
 # --- Лента ---
 
 
-async def test_feed_shows_only_own_age_group_and_visible(client, make_player):
+async def test_feed_hides_other_ages_hidden_and_banned(client, make_player):
     me = await make_player()
     peer = await make_player()
     await make_player(AgeGroup.ADULT)
@@ -86,6 +87,92 @@ async def test_feed_shows_only_own_age_group_and_visible(client, make_player):
 
     assert [person["user_id"] for person in people] == [peer.id]
     assert "username" not in people[0] and "discord_tag" not in people[0]  # контактов в ленте нет
+
+
+# --- Возраст поиска ---
+
+
+async def ids(client, player) -> set[int]:
+    return {person["user_id"] for person in await feed(client, player, limit=30)}
+
+
+def test_search_limits():
+    assert search_limits(13) == search_limits(15) == (13, 17)
+    assert search_limits(16) == (13, 20)
+    assert search_limits(17) == (13, 21)
+    assert search_limits(18) == (16, None)
+    assert search_limits(21) == (17, None)
+    assert search_limits(30) == (18, None)
+
+
+def test_age_rules_are_symmetric_and_keep_adults_from_under_16():
+    for a in range(13, 61):
+        for b in range(13, 61):
+            assert can_meet(a, b) == can_meet(b, a)
+            young, old = min(a, b), max(a, b)
+            if young < 18:
+                # Хоть один младше 18 — разница до 4 лет; взрослый и младше 16 — никогда
+                assert can_meet(a, b) == (old - young <= 4 and not (old >= 18 and young < 16))
+            else:
+                assert can_meet(a, b)  # между взрослыми рамок нет — только их собственный выбор
+
+
+async def test_feed_respects_age_limits(client, make_player):
+    p = {age: await make_player(age=age) for age in (13, 15, 17, 18, 21, 22, 40)}
+
+    assert await ids(client, p[17]) == {p[13].id, p[15].id, p[18].id, p[21].id}
+    assert await ids(client, p[15]) == {p[13].id, p[17].id}
+    assert await ids(client, p[18]) == {p[17].id, p[21].id, p[22].id, p[40].id}
+    assert await ids(client, p[40]) == {p[18].id, p[21].id, p[22].id}
+
+
+async def test_chosen_age_range_works_both_ways(client, make_player):
+    me = await make_player(age=20, search_age=(18, 22))
+    peer = await make_player(age=21)
+    older = await make_player(age=30)
+    picky = await make_player(age=22, search_age=(25, None))
+
+    assert await ids(client, me) == {peer.id}
+    # Я не в выборе у picky, а older — не в моём: друг другу не показываемся
+    assert me.id not in await ids(client, older)
+    assert me.id not in await ids(client, picky)
+    # Лайк мимо выбора тоже не проходит
+    response = await client.post(f"/api/people/{older.id}/react", json={"kind": "like"}, headers=me.headers)
+    assert response.status_code == 404
+
+
+async def test_save_search_age(client, make_player):
+    me = await make_player(age=17)
+
+    response = await client.put("/api/me/search-age", json={"age_min": 15, "age_max": 21}, headers=me.headers)
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["search_age_limits"] == {"min": 13, "max": 21}
+    # Граница, совпавшая с рамкой, хранится как «до рамки» — и сдвинется вместе с возрастом
+    assert (body["profile"]["search_age_min"], body["profile"]["search_age_max"]) == (15, None)
+    for wrong in ({"age_min": 12}, {"age_max": 22}, {"age_min": 20, "age_max": 18}):
+        response = await client.put("/api/me/search-age", json=wrong, headers=me.headers)
+        assert (response.status_code, response.json()["detail"]) == (422, "search_age_out_of_range")
+
+
+async def test_adult_cannot_choose_under_16(client, make_player):
+    me = await make_player(age=25)
+
+    response = await client.put("/api/me/search-age", json={"age_min": 15}, headers=me.headers)
+    assert response.status_code == 422
+    response = await client.put("/api/me/search-age", json={"age_min": 20, "age_max": None}, headers=me.headers)
+    body = response.json()
+    assert body["search_age_limits"] == {"min": 18, "max": None}
+    assert (body["profile"]["search_age_min"], body["profile"]["search_age_max"]) == (20, None)
+
+
+async def test_outdated_choice_resets_after_birthday(client, make_player):
+    me = await make_player(age=18, search_age=(13, 15))  # выбор остался с 15 лет — теперь он вне рамок
+    peer = await make_player(age=19)
+
+    assert await ids(client, me) == {peer.id}
+    assert me.id in await ids(client, peer)  # и самого его снова видно
 
 
 async def test_feed_is_sorted_by_compatibility(client, make_player):
@@ -162,7 +249,8 @@ async def test_mutual_like_creates_match_with_contacts(client, make_player):
     result = await react(client, me, other, "like")
 
     match = result["match"]
-    assert (match["user_id"], match["username"], match["discord_tag"]) == (other.id, other.username, f"{other.username}_dc")
+    # Ник в Telegram скрыт, пока человек сам не разрешит (test_chats); Discord — виден
+    assert (match["user_id"], match["username"], match["discord_tag"]) == (other.id, None, f"{other.username}_dc")
     mine = (await client.get("/api/matches", headers=me.headers)).json()
     theirs = (await client.get("/api/matches", headers=other.headers)).json()
     assert [m["user_id"] for m in mine] == [other.id]
@@ -196,10 +284,35 @@ async def test_blocked_match_disappears(client, session_maker, make_player):
     assert (await client.get("/api/matches", headers=me.headers)).json() == []
 
 
+async def test_deleted_match_disappears_for_both_and_does_not_come_back(client, make_player):
+    me, other = await make_player(), await make_player()
+    await react(client, other, me)
+    await react(client, me, other)
+
+    response = await client.delete(f"/api/matches/{other.id}", headers=me.headers)
+
+    assert response.status_code == 204
+    assert (await client.get("/api/matches", headers=me.headers)).json() == []
+    assert (await client.get("/api/matches", headers=other.headers)).json() == []
+    # Удалённый не вернётся в ленту, а его повторный лайк не создаст мэтч заново
+    assert await feed(client, me) == []
+    assert (await react(client, other, me))["match"] is None
+    assert (await client.get("/api/matches", headers=me.headers)).json() == []
+
+
+async def test_delete_unknown_match_is_404(client, make_player):
+    me, other = await make_player(), await make_player()
+    await react(client, me, other)  # лайк без взаимности — ещё не мэтч
+
+    response = await client.delete(f"/api/matches/{other.id}", headers=me.headers)
+    assert (response.status_code, response.json()["detail"]) == (404, "match_not_found")
+
+
 async def test_reaction_kind_is_validated(client, make_player):
     me, other = await make_player(), await make_player()
-    response = await client.post(f"/api/people/{other.id}/react", json={"kind": "superlike"}, headers=me.headers)
-    assert response.status_code == 422
+    for kind in ("superlike", "unmatch"):  # «unmatch» ставит только удаление мэтча
+        response = await client.post(f"/api/people/{other.id}/react", json={"kind": kind}, headers=me.headers)
+        assert response.status_code == 422
     assert ReactionKind.LIKE.value == "like"
 
 

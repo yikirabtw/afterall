@@ -6,8 +6,10 @@ import placeholderLight from '../assets/splash-light.jpg'
 import type { Photo } from '../api/types'
 import { haptic } from '../telegram'
 
-// Фото с переключением как в сторис: нажатие слева — назад, справа — вперёд. Подписи кладутся в слот.
+// Фото листаются свайпом влево/вправо или нажатием: слева — назад, справа — вперёд. Подписи кладутся в слот.
 const props = defineProps<{ photos: Photo[]; name: string }>()
+
+const SWIPE_MIN = 40 // px по горизонтали — это свайп, а не нажатие
 
 const index = ref(0)
 watch(
@@ -17,17 +19,43 @@ watch(
 
 const initial = computed(() => props.name.trim().charAt(0).toUpperCase() || '?')
 
-function onTap(event: MouseEvent) {
-  if (props.photos.length < 2) return
-  const box = (event.currentTarget as HTMLElement).getBoundingClientRect()
-  const forward = event.clientX - box.left > box.width / 3
+function step(forward: boolean) {
   index.value = (index.value + (forward ? 1 : props.photos.length - 1)) % props.photos.length
   haptic.select()
+}
+
+let startX = 0
+let startY = 0
+let swiped = false
+
+function onPointerDown(event: PointerEvent) {
+  startX = event.clientX
+  startY = event.clientY
+  swiped = false
+}
+
+function onPointerUp(event: PointerEvent) {
+  const dx = event.clientX - startX
+  const dy = event.clientY - startY
+  if (props.photos.length < 2 || Math.abs(dx) < SWIPE_MIN || Math.abs(dx) < Math.abs(dy)) return
+  swiped = true
+  step(dx < 0) // палец влево — следующее фото
+}
+
+function onTap(event: MouseEvent) {
+  // После свайпа браузер присылает ещё и нажатие — второй раз не листаем
+  if (swiped) {
+    swiped = false
+    return
+  }
+  if (props.photos.length < 2) return
+  const box = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  step(event.clientX - box.left > box.width / 3)
 }
 </script>
 
 <template>
-  <div class="carousel" @click="onTap">
+  <div class="carousel" @click="onTap" @pointerdown="onPointerDown" @pointerup="onPointerUp">
     <!-- Все фото в разметке сразу — переключение мгновенное, без подгрузки -->
     <img
       v-for="(photo, i) in photos"
@@ -58,6 +86,7 @@ function onTap(event: MouseEvent) {
 <style scoped>
 .carousel {
   position: relative;
+  touch-action: pan-y; /* вертикальную прокрутку отдаём странице, горизонтальный свайп — нам */
   overflow: hidden;
   background: var(--card);
   user-select: none;

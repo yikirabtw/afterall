@@ -19,8 +19,18 @@ export interface Profile {
   city: string | null
   timezone: string
   discord_tag: string | null
+  show_telegram: boolean // ник в Telegram видят мэтчи и участники пати, только если включено
   is_visible: boolean
+  // Возраст поиска в ленте людей; null — до рамки (Me.search_age_limits)
+  search_age_min: number | null
+  search_age_max: number | null
   reputation: number
+}
+
+/** Рамки ползунка «Возраст»: дальше них выбрать нельзя. max = null — без верхней границы (у взрослых) */
+export interface AgeLimits {
+  min: number
+  max: number | null
 }
 
 export interface UserGame {
@@ -52,6 +62,7 @@ export interface Me {
   photos: Photo[] // первое — главное
   games: UserGame[]
   availability: Slot[]
+  search_age_limits: AgeLimits | null
 }
 
 export interface GameRank {
@@ -89,6 +100,7 @@ export interface ProfileInput {
   city: string | null
   timezone: string
   discord_tag: string | null
+  show_telegram: boolean
   is_visible: boolean
 }
 
@@ -234,4 +246,56 @@ export interface PeopleParams {
   play_style?: PlayStyle
   language?: string
   limit?: number
+}
+
+// --- Чаты ---
+
+export type ChatKind = 'direct' | 'lobby' // direct — личный после мэтча, lobby — общий у пати
+
+export interface ChatMessage {
+  id: number
+  sender_id: number
+  sender_name: string
+  mine: boolean
+  body: string
+  created_at: string
+}
+
+export interface ChatHead {
+  kind: ChatKind
+  ref: number // direct — id собеседника, lobby — id пати
+  title: string
+  photo: Photo | null
+  game_id: number | null
+  can_send: boolean // у закончившейся пати — только чтение
+}
+
+export interface ChatSummary extends ChatHead {
+  last_message: ChatMessage | null
+  unread: number
+  updated_at: string
+}
+
+export interface Chat extends ChatHead {
+  messages: ChatMessage[] // по возрастанию id
+  has_more: boolean
+}
+
+// --- Жалобы и блокировки ---
+
+export type ReportReason = 'minor_safety' | 'toxic' | 'spam' | 'scam' | 'inappropriate' | 'fake_profile' | 'other'
+
+/** Жалоба на человека из мэтчей или из общей пати (тогда lobby_id). Сразу блокирует его для автора */
+export interface ReportInput {
+  user_id: number
+  reason: ReportReason
+  comment?: string | null
+  lobby_id?: number | null
+}
+
+export interface BlockedUser {
+  user_id: number
+  display_name: string
+  photo: Photo | null
+  blocked_at: string
 }

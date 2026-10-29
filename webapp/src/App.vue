@@ -2,7 +2,9 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
+import ConfirmDialog from './components/ConfirmDialog.vue'
 import SplashScreen from './components/SplashScreen.vue'
+import { openStartLink } from './router'
 import { loadSession, session } from './stores/session'
 
 // Заставка видна хотя бы столько, чтобы логотип успел собраться, — но только при первом запуске
@@ -20,6 +22,7 @@ async function start() {
   firstStart = false
   await Promise.all([loadSession(), minDelay])
   if (session.me) await router.replace(session.me.is_onboarded ? '/feed' : '/onboarding')
+  if (session.me?.is_onboarded) await openStartLink() // открыли из уведомления бота
   routed.value = true
 }
 
@@ -37,6 +40,7 @@ onMounted(start)
   </Transition>
 
   <RouterView v-if="session.status === 'ready' && routed" />
+  <ConfirmDialog />
 </template>
 
 <style scoped>

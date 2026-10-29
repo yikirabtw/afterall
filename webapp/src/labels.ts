@@ -1,6 +1,6 @@
 // Подписи для значений из API — в одном месте, чтобы тексты не расползались по экранам
 
-import type { AgeGroup, LobbyStatus, LookingFor, MemberStatus, PlayStyle } from './api/types'
+import type { AgeGroup, LobbyStatus, LookingFor, MemberStatus, PlayStyle, ReportReason } from './api/types'
 
 export const PLAY_STYLES: { value: PlayStyle; label: string }[] = [
   { value: 'chill', label: 'Чилл' },
@@ -41,3 +41,14 @@ export const MEMBER_STATUS_LABELS: Partial<Record<MemberStatus, string>> = {
   pending: 'Ждёт ответа',
   accepted: 'Ты в пати',
 }
+
+// Причины жалобы — в порядке, как их видит человек; «подросток» — разбирается модераторами первой
+export const REPORT_REASONS: { value: ReportReason; label: string }[] = [
+  { value: 'toxic', label: 'Оскорбления или травля' },
+  { value: 'inappropriate', label: 'Неприличные фото или сообщения' },
+  { value: 'minor_safety', label: 'Пристаёт к подростку или угрожает' },
+  { value: 'scam', label: 'Мошенничество' },
+  { value: 'spam', label: 'Спам или реклама' },
+  { value: 'fake_profile', label: 'Фейк или чужие фото' },
+  { value: 'other', label: 'Другое' },
+]

@@ -250,6 +250,13 @@ function edit(event: Event) {
         <span class="row-end"><span class="hint">{{ languages }}</span><span class="chevron" aria-hidden="true">›</span></span>
       </RouterLink>
       <RouterLink to="/profile/edit" class="list__row tappable" @click="haptic.tap()">
+        <span>Ник в Telegram</span>
+        <span class="row-end">
+          <span class="hint">{{ profile.show_telegram ? 'виден мэтчам' : 'скрыт' }}</span>
+          <span class="chevron" aria-hidden="true">›</span>
+        </span>
+      </RouterLink>
+      <RouterLink to="/profile/edit" class="list__row tappable" @click="haptic.tap()">
         <span>Discord</span>
         <span class="row-end">
           <span class="hint">{{ profile.discord_tag ?? 'не указан' }}</span>
@@ -260,8 +267,12 @@ function edit(event: Event) {
         <span>Кого ищу, стиль, микрофон</span>
         <span class="row-end"><span class="hint">{{ lookingFor }}</span><span class="chevron" aria-hidden="true">›</span></span>
       </RouterLink>
+      <RouterLink to="/profile/blocked" class="list__row tappable" @click="haptic.tap()">
+        <span>Заблокированные</span>
+        <span class="row-end"><span class="chevron" aria-hidden="true">›</span></span>
+      </RouterLink>
     </BorderGlow>
-    <p class="hint">Discord и ник в Telegram видны только после взаимного лайка или в общей пати.</p>
+    <p class="hint">После взаимного лайка или в общей пати вы пишете друг другу в чате приложения. Discord и ник в Telegram — только если ты их открыл.</p>
   </main>
 </template>
 
@@ -283,7 +294,7 @@ function edit(event: Event) {
 }
 
 /* Вертикальный свайп по шапке — наш, страницу с неё не прокручиваем */
-.hero--swipe {
+.hero.hero--swipe {
   touch-action: none;
 }
 

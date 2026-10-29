@@ -33,6 +33,10 @@
   --lamp: #ffffff; /* светящиеся полосы «лампы» */
   --faceit-1: #eeeeee; /* 1 уровень FACEIT — белый, на светлом не виден */
   --shadow-float: 0 10px 30px rgb(0 0 0 / 0.6);
+  /* Отражение на «металле» карточек пати: светлое поверх тёмного */
+  --reflect-blend: screen;
+  --reflect-filter: none;
+  --reflect-opacity: 0.17;
 
   color-scheme: dark;
 }
@@ -61,6 +65,10 @@
   --lamp: #0a0a0a;
   --faceit-1: #8a8a8a;
   --shadow-float: 0 10px 30px rgb(0 0 0 / 0.1);
+  /* В светлой теме свет «отражается» тёмным: та же картинка, инвертированная */
+  --reflect-blend: multiply;
+  --reflect-filter: invert(1);
+  --reflect-opacity: 0.08;
 
   color-scheme: light;
 }
@@ -121,6 +129,14 @@
 
 * {
   box-sizing: border-box;
+}
+
+/*
+  Место под полосу прокрутки — всегда. При смене вкладки страница на миг пустая, полоса пропадала,
+  окно становилось шире и центрированная нижняя панель прыгала вбок (Telegram Desktop, браузер на компьютере).
+*/
+html {
+  scrollbar-gutter: stable;
 }
 
 html,
@@ -457,6 +473,9 @@ textarea.input {
   растягивается в сторону движения, потом догоняет себя; при нажатии сплющивается.
   Анимация включается после первого переключения (класс switch--live, src/squish.ts) —
   иначе она проигрывалась бы у всех тумблеров при открытии экрана.
+  Только transform (сдвиг + растяжение scaleX): его ведёт видеокарта, поэтому кружок не дёргается,
+  даже когда страница в этот момент занята (например, перезагружает ленту после фильтра).
+  Кружок 20px, ход 20px; растянутый ×1.55 = 31px, край, от которого он тянется, стоит на месте.
 */
 .switch {
   appearance: none;
@@ -485,9 +504,9 @@ textarea.input {
   height: 20px;
   border-radius: 10px;
   background: var(--g-500);
+  will-change: transform;
   transition:
     transform 0.2s ease,
-    width 0.15s ease,
     background-color 0.32s ease;
 }
 
@@ -502,13 +521,13 @@ textarea.input {
   transform: translateX(20px);
 }
 
-/* Нажали — кружок сплющился к центру хода */
+/* Нажали — кружок растянулся к центру хода (×1.25 = 25px), дальний край на месте */
 .switch:active::after {
-  width: 25px;
+  transform: translateX(2.5px) scaleX(1.25);
 }
 
 .switch:checked:active::after {
-  transform: translateX(15px);
+  transform: translateX(17.5px) scaleX(1.25);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -525,37 +544,32 @@ textarea.input {
   animation: squish-on 0.34s cubic-bezier(0.3, 0.7, 0.3, 1);
 }
 
+/* Старт — из «прижатого» положения (как у :active), иначе на пальце кружок дёргался бы назад */
 @keyframes squish-on {
   0% {
-    width: 20px;
-    transform: translateX(0);
+    transform: translateX(2.5px) scaleX(1.25);
   }
 
   45% {
-    width: 31px;
-    transform: translateX(0);
+    transform: translateX(5.5px) scaleX(1.55);
   }
 
   100% {
-    width: 20px;
-    transform: translateX(20px);
+    transform: translateX(20px) scaleX(1);
   }
 }
 
 @keyframes squish-off {
   0% {
-    width: 20px;
-    transform: translateX(20px);
+    transform: translateX(17.5px) scaleX(1.25);
   }
 
   45% {
-    width: 31px;
-    transform: translateX(9px);
+    transform: translateX(14.5px) scaleX(1.55);
   }
 
   100% {
-    width: 20px;
-    transform: translateX(0);
+    transform: translateX(0) scaleX(1);
   }
 }
 

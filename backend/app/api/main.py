@@ -14,11 +14,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.api.routes import games, health, lobbies, me, onboarding, people, photos, telegram
+from app.api.routes import chats, games, health, lobbies, me, onboarding, people, photos, safety, telegram
 from app.bot.dispatcher import build_dispatcher
 from app.bot.setup import setup_bot
 from app.config import settings
 from app.db.session import AsyncSessionLocal
+from app.services.notify import Notifier
 
 
 @dataclass
@@ -40,6 +41,7 @@ def create_app(
     init_data_max_age: timedelta = timedelta(hours=24),
     static_dir: Path | None = None,
     webhook: TelegramWebhook | None = None,
+    notifier: Notifier | None = None,
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -60,6 +62,8 @@ def create_app(
     app.state.session_maker = session_maker
     app.state.init_data_max_age = init_data_max_age
     app.state.webhook = webhook
+    # Уведомления шлёт тот же бот, что принимает вебхук; без вебхука (локально) — только в лог
+    app.state.notifier = notifier or Notifier(webhook.bot if webhook else None, webhook.webapp_url if webhook else None)
     # Ключ подписи ссылок на фото — выводим из токена бота, чтобы не заводить ещё один секрет
     app.state.photo_secret = hashlib.sha256(f"photos:{bot_token}".encode()).hexdigest()
 
@@ -69,7 +73,7 @@ def create_app(
         allow_methods=["*"],
         allow_headers=["Authorization", "Content-Type"],
     )
-    for module in (health, me, onboarding, photos, people, games, lobbies):
+    for module in (health, me, onboarding, photos, people, games, lobbies, chats, safety):
         app.include_router(module.router, prefix="/api")
     app.include_router(telegram.router)
     if static_dir is not None:
@@ -96,6 +100,7 @@ def create_app_from_settings() -> FastAPI:
     if webapp_url:
         cors_origins.append(_origin(webapp_url))
 
+    admin_ids = frozenset(settings.admin_telegram_ids)
     webhook = None
     if settings.public_url:
         secret = (
@@ -106,7 +111,7 @@ def create_app_from_settings() -> FastAPI:
         )
         webhook = TelegramWebhook(
             bot=Bot(token, default=DefaultBotProperties(parse_mode=ParseMode.HTML)),
-            dispatcher=build_dispatcher(AsyncSessionLocal, webapp_url),
+            dispatcher=build_dispatcher(AsyncSessionLocal, webapp_url, admin_ids),
             secret=secret,
             url=f"{settings.public_url.rstrip('/')}/telegram/webhook",
             webapp_url=webapp_url,
@@ -119,4 +124,5 @@ def create_app_from_settings() -> FastAPI:
         init_data_max_age=timedelta(hours=settings.init_data_max_age_hours),
         static_dir=static_dir,
         webhook=webhook,
+        notifier=Notifier(webhook.bot if webhook else None, webapp_url, admin_ids),
     )

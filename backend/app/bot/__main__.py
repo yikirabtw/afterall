@@ -29,7 +29,7 @@ async def main(token: str) -> None:
             "и укажите его токен в backend/.env."
         )
 
-    dispatcher = build_dispatcher(AsyncSessionLocal, settings.webapp_url)
+    dispatcher = build_dispatcher(AsyncSessionLocal, settings.webapp_url, frozenset(settings.admin_telegram_ids))
     await setup_bot(bot, settings.webapp_url)
     await bot.delete_webhook(drop_pending_updates=True)  # не отвечаем на то, что накопилось, пока бот был выключен
     await dispatcher.start_polling(bot)

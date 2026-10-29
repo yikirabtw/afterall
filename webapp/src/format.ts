@@ -24,3 +24,18 @@ export function formatAge(age: number): string {
   if (last >= 2 && last <= 4) return `${age} года`
   return `${age} лет`
 }
+
+/** Время в чатах: «14:05» сегодня, «вчера», иначе «12.10» */
+export function formatChatTime(at: string, now = new Date()): string {
+  const date = new Date(at)
+  if (sameDay(date, now)) return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  if (sameDay(date, yesterday)) return 'вчера'
+  return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })
+}
+
+/** Время под сообщением — всегда часы и минуты */
+export function formatMessageTime(at: string): string {
+  return new Date(at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+}

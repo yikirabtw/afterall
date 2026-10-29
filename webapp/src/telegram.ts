@@ -3,6 +3,8 @@
 
 import { onBeforeUnmount, watch, type Ref } from 'vue'
 
+import { askInApp } from './stores/confirm'
+
 interface TelegramWebApp {
   initData: string
   initDataUnsafe: { user?: { id: number; first_name: string; username?: string } }
@@ -92,10 +94,10 @@ export const haptic = {
   error: () => supports('6.1') && webApp!.HapticFeedback.notificationOccurred('error'),
 }
 
-/** Подтверждение опасного действия: системное окно Telegram, в браузере — обычный confirm */
+/** Подтверждение опасного действия: системное окно Telegram, в браузере — своё окно (ConfirmDialog.vue) */
 export function confirmAction(message: string): Promise<boolean> {
   if (supports('6.2')) return new Promise((resolve) => webApp!.showConfirm(message, resolve))
-  return Promise.resolve(window.confirm(message))
+  return askInApp(message)
 }
 
 /** Ссылки t.me открываем внутри Telegram, остальные (Discord) — во внешнем браузере */

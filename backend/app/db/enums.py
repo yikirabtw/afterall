@@ -52,6 +52,9 @@ class MemberStatus(StrEnum):
 class ReactionKind(StrEnum):
     LIKE = "like"
     SKIP = "skip"
+    # Человек удалил мэтч: анкета больше не показывается, а повторный лайк с той стороны мэтча не даст.
+    # Ставится только сервером при удалении мэтча, из ленты так ответить нельзя.
+    UNMATCH = "unmatch"
 
 
 class MatchSource(StrEnum):

@@ -120,7 +120,7 @@ async function submit() {
       rank_min_id: rankMin.value,
       rank_max_id: rankMax.value,
       need_mic: needMic.value,
-      play_style: playStyle.value,
+      play_style: kind.value === 'game' ? playStyle.value : null,
       language: language.value,
       starts_at: startsAt.value?.toISOString() ?? null,
       contact_link: contact,
@@ -217,7 +217,8 @@ async function submit() {
         <input v-model="needMic" class="switch" type="checkbox" @change="haptic.select()" />
       </label>
 
-      <div class="field">
+      <!-- Стиль игры — только для пати в игру: у «Просто посидеть» он не нужен -->
+      <div v-if="kind === 'game'" class="field">
         <span class="field__label">Стиль</span>
         <div v-jelly.soft class="segmented">
           <button type="button" :aria-pressed="playStyle === null" @click="(playStyle = null), haptic.select()">Любой</button>

@@ -34,5 +34,9 @@ class Settings(BaseSettings):
     # Собранное мини-приложение (webapp/dist). Если папка есть — API отдаёт его по адресу /
     static_dir: Path | None = None
 
+    # Telegram ID админов (JSON-список, например [123456789]): им приходят жалобы с кнопками бана,
+    # даже если в базе у них нет роли admin. Задаётся в панели хостинга.
+    admin_telegram_ids: list[int] = []
+
 
 settings = Settings()

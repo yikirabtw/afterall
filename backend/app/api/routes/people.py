@@ -1,24 +1,26 @@
-"""Лента людей: анкеты своей возрастной группы, «нравится» / «дальше», мэтчи.
+"""Лента людей: анкеты по взаимному возрасту поиска (рамки — domain/age.py), «нравится» / «дальше», мэтчи.
 
-Контакты (ник в Telegram, Discord) открываются только после взаимного лайка.
+После взаимного лайка открываются чат в приложении и Discord; ник в Telegram — только если человек разрешил.
 """
 
 from collections.abc import Callable
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Response, status
 from sqlalchemy import ColumnElement, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import OnboardedUser, PhotoUrl, SessionDep
+from app.api.deps import NotifierDep, OnboardedUser, PhotoUrl, SessionDep
 from app.api.schemas import LanguageCode, MatchOut, PersonGameOut, PersonOut, PhotoOut, ReactIn, ReactOut
 from app.db.enums import MatchSource, PlayStyle, ReactionKind
 from app.db.models import Game, GameRank, Match, Profile, Reaction, User, UserGame
-from app.domain.age import age_on
+from app.domain.age import age_on, search_range, search_range_fits, years_ago
 from app.domain.people import CANDIDATE_POOL, SKIP_COOLDOWN, Compatibility, Traits, compatibility
 from app.domain.time import utcnow
+from app.bot import texts
+from app.services.notify import Note
 from app.services.users import ban_inactive_clause, blocked_user_ids
 
 router = APIRouter(tags=["люди"])
@@ -30,16 +32,38 @@ PERSON_OPTIONS = (
 )
 
 
-def _visible_people(viewer: User, now) -> list[ColumnElement[bool]]:
-    """Кого можно видеть в ленте и лайкать: своя возрастная группа, анкета открыта, нет бана и блокировок."""
-    return [
+def _visible_people(viewer: User, profile: Profile, now) -> list[ColumnElement[bool]]:
+    """Кого можно видеть в ленте и лайкать: анкета открыта, нет бана и блокировок, возраст подходит обоим.
+
+    Возраст: человек попадает в мой диапазон (уже обрезанный рамками), а я — в его выбор.
+    Рамки симметричные (domain/age.search_limits), поэтому проверять их со второй стороны не нужно.
+    """
+    today = now.date()
+    my_age = age_on(viewer.birth_date, today)
+    start, end = search_range(my_age, profile.search_age_min, profile.search_age_max)
+    conditions = [
         User.id != viewer.id,
         User.onboarded_at.is_not(None),
-        User.age_group == viewer.age_group,
+        User.birth_date <= years_ago(today, start),
+        or_(Profile.search_age_min.is_(None), Profile.search_age_min <= my_age),
+        or_(Profile.search_age_max.is_(None), Profile.search_age_max >= my_age),
         Profile.is_visible.is_(True),
         ban_inactive_clause(now),
         User.id.not_in(blocked_user_ids(viewer.id)),
     ]
+    if end is not None:
+        conditions.append(User.birth_date > years_ago(today, end + 1))
+    return conditions
+
+
+async def _my_profile(session: AsyncSession, user: User, now) -> Profile:
+    """Своя анкета для подбора. Выбор возраста, целиком выпавший из рамок после дня рождения, сбрасывается —
+    иначе человека не увидел бы никто: другие проверяют свой возраст по его устаревшему выбору."""
+    profile = await session.get(Profile, user.id)
+    if not search_range_fits(age_on(user.birth_date, now.date()), profile.search_age_min, profile.search_age_max):
+        profile.search_age_min = profile.search_age_max = None
+        await session.commit()
+    return profile
 
 
 async def _load_person(session: AsyncSession, user_id: int) -> User:
@@ -103,7 +127,7 @@ def _match_out(other: User, match: Match, photo_url: Callable[[int], str], today
         age=_age(other, today),
         photos=_photos(other, photo_url),
         main_game_id=next((game.game_id for game in other.games if game.is_main), None),
-        username=other.username,
+        username=other.username if profile.show_telegram else None,
         discord_tag=profile.discord_tag,
         matched_at=match.created_at,
     )
@@ -120,18 +144,22 @@ async def people_feed(
     language: LanguageCode | None = None,
     limit: Annotated[int, Query(ge=1, le=30)] = 10,
 ) -> list[PersonOut]:
-    """Анкеты, отсортированные по «совпадению». Лайкнутые не показываются, пропущенные — вернутся через 3 дня."""
+    """Анкеты, отсортированные по «совпадению». Лайкнутые и удалённые из мэтчей не показываются,
+    пропущенные — вернутся через 3 дня."""
     now = utcnow()
-    liked = select(Reaction.to_user_id).where(Reaction.from_user_id == user.id, Reaction.kind == ReactionKind.LIKE)
+    liked = select(Reaction.to_user_id).where(
+        Reaction.from_user_id == user.id, Reaction.kind.in_((ReactionKind.LIKE, ReactionKind.UNMATCH))
+    )
     skipped = select(Reaction.to_user_id).where(
         Reaction.from_user_id == user.id,
         Reaction.kind == ReactionKind.SKIP,
         Reaction.created_at > now - SKIP_COOLDOWN,
     )
+    profile = await _my_profile(session, user, now)
     query = (
         select(User)
         .join(Profile, Profile.user_id == User.id)
-        .where(*_visible_people(user, now), User.id.not_in(liked), User.id.not_in(skipped))
+        .where(*_visible_people(user, profile, now), User.id.not_in(liked), User.id.not_in(skipped))
         .options(*PERSON_OPTIONS)
         .order_by(User.last_seen_at.desc().nulls_last())
         .limit(CANDIDATE_POOL)
@@ -159,14 +187,25 @@ async def people_feed(
 
 @router.post("/people/{person_id}/react", response_model=ReactOut)
 async def react_to_person(
-    person_id: int, body: ReactIn, user: OnboardedUser, session: SessionDep, photo_url: PhotoUrl
+    person_id: int,
+    body: ReactIn,
+    user: OnboardedUser,
+    session: SessionDep,
+    photo_url: PhotoUrl,
+    notifier: NotifierDep,
+    background: BackgroundTasks,
 ) -> ReactOut:
-    """«Нравится» или «дальше». Взаимное «нравится» — мэтч, и в ответе сразу контакты."""
+    """«Нравится» или «дальше». Взаимное «нравится» — мэтч, и в ответе сразу контакты.
+
+    Кто лайкнул вторым, узнаёт о мэтче сразу в приложении, а первому приходит уведомление в боте.
+    """
     now = utcnow()
+    kind = ReactionKind(body.kind)
+    profile = await _my_profile(session, user, now)
     person = await session.scalar(
         select(User)
         .join(Profile, Profile.user_id == User.id)
-        .where(User.id == person_id, *_visible_people(user, now))
+        .where(User.id == person_id, *_visible_people(user, profile, now))
         .options(*PERSON_OPTIONS)
     )
     if person is None:
@@ -176,13 +215,13 @@ async def react_to_person(
         select(Reaction).where(Reaction.from_user_id == user.id, Reaction.to_user_id == person_id)
     )
     if reaction is None:
-        session.add(Reaction(from_user_id=user.id, to_user_id=person_id, kind=body.kind, created_at=now))
+        session.add(Reaction(from_user_id=user.id, to_user_id=person_id, kind=kind, created_at=now))
     else:
-        reaction.kind = body.kind
+        reaction.kind = kind
         reaction.created_at = now  # от этого времени считается, когда пропущенный вернётся в ленту
 
     match = None
-    if body.kind == ReactionKind.LIKE:
+    if kind == ReactionKind.LIKE:
         mutual = await session.scalar(
             select(Reaction.id).where(
                 Reaction.from_user_id == person_id,
@@ -196,6 +235,10 @@ async def react_to_person(
             if match is None:
                 match = Match(user_a_id=user_a_id, user_b_id=user_b_id, source=MatchSource.FEED, created_at=now)
                 session.add(match)
+                note = Note(
+                    person.telegram_id, texts.notify_match(profile.display_name), texts.BUTTON_WRITE, f"chat/direct/{user.id}"
+                )
+                background.add_task(notifier.send, [note])
     await session.commit()
     return ReactOut(match=_match_out(person, match, photo_url, now.date()) if match else None)
 
@@ -225,3 +268,28 @@ async def my_matches(user: OnboardedUser, session: SessionDep, photo_url: PhotoU
         if other_id in people:
             result.append(_match_out(people[other_id], match, photo_url, today))
     return result
+
+
+@router.delete("/matches/{person_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_match(person_id: int, user: OnboardedUser, session: SessionDep) -> Response:
+    """Удалить мэтч у обоих. Личный чат уходит вместе с ним (каскад в базе).
+
+    Своя реакция становится «unmatch»: человек не вернётся в ленту, а его повторный лайк не создаст мэтч заново.
+    """
+    user_a_id, user_b_id = sorted((user.id, person_id))
+    match = await session.scalar(select(Match).where(Match.user_a_id == user_a_id, Match.user_b_id == user_b_id))
+    if match is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="match_not_found")
+    await session.delete(match)
+
+    now = utcnow()
+    reaction = await session.scalar(
+        select(Reaction).where(Reaction.from_user_id == user.id, Reaction.to_user_id == person_id)
+    )
+    if reaction is None:  # мэтч мог появиться не из ленты
+        session.add(Reaction(from_user_id=user.id, to_user_id=person_id, kind=ReactionKind.UNMATCH, created_at=now))
+    else:
+        reaction.kind = ReactionKind.UNMATCH
+        reaction.created_at = now
+    await session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -10,11 +10,12 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import CurrentUser, PhotoUrl, SessionDep
+from app.api.deps import CurrentUser, OnboardedUser, PhotoUrl, SessionDep
 from app.api.routes.me import load_me
-from app.api.schemas import AvailabilityIn, BirthDateIn, GamesIn, MeOut, ProfileIn
+from app.api.schemas import AvailabilityIn, BirthDateIn, GamesIn, MeOut, ProfileIn, SearchAgeIn
 from app.db.models import Game, Profile, UserAvailability, UserGame
-from app.domain.age import age_group_for
+from app.domain.age import age_group_for, age_on, search_limits
+from app.domain.time import utcnow
 
 router = APIRouter(prefix="/me", tags=["онбординг и анкета"])
 
@@ -49,6 +50,25 @@ async def save_profile(body: ProfileIn, user: CurrentUser, session: SessionDep, 
         session.add(profile)
     for field, value in body.model_dump().items():
         setattr(profile, field, value)
+    await session.commit()
+    return await load_me(session, user.id, photo_url)
+
+
+@router.put("/search-age", response_model=MeOut)
+async def save_search_age(body: SearchAgeIn, user: OnboardedUser, session: SessionDep, photo_url: PhotoUrl) -> MeOut:
+    """Возраст поиска в ленте людей («от и до»), взаимный. Выйти за рамки (domain/age.search_limits) нельзя.
+
+    Граница, совпавшая с рамкой, хранится как None — тогда она сама сдвигается вместе с возрастом.
+    """
+    low, high = search_limits(age_on(user.birth_date, utcnow().date()))
+    start = low if body.age_min is None else body.age_min
+    end = high if body.age_max is None else body.age_max
+    if start < low or (high is not None and (end is None or end > high)) or (end is not None and start > end):
+        raise _invalid("search_age_out_of_range")
+
+    profile = await session.get(Profile, user.id)
+    profile.search_age_min = None if start == low else start
+    profile.search_age_max = None if end == high else end
     await session.commit()
     return await load_me(session, user.id, photo_url)
 

@@ -5,6 +5,8 @@ import type { Me, ProfileInput, UserGameInput } from './api/types'
 export const NAME_MAX = 20
 export const BIO_MAX = 150
 export const PHOTOS_MAX = 3
+// Верх ползунка «Возраст» у взрослых: «45+» — без верхней границы
+export const SEARCH_AGE_TOP = 45
 
 export function profileFormFrom(me: Me): ProfileInput {
   const existing = me.profile
@@ -19,6 +21,7 @@ export function profileFormFrom(me: Me): ProfileInput {
     // Часовой пояс берём с телефона — пригодится для уведомлений «в твоё время»
     timezone: existing?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'Europe/Moscow',
     discord_tag: existing?.discord_tag ?? null,
+    show_telegram: existing?.show_telegram ?? false,
     is_visible: existing?.is_visible ?? true,
   }
 }

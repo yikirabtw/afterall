@@ -103,6 +103,14 @@ function toggleLanguage(code: string) {
       <input v-model="form.discord_tag" class="input" maxlength="64" placeholder="ник в Discord" autocomplete="off" />
       <span class="hint">Увидят только после взаимного лайка или когда вы окажетесь в одной пати.</span>
     </label>
+
+    <label class="card toggle-row">
+      <span>
+        <b>Показывать мой Telegram</b>
+        <span class="hint block">Иначе мэтчи и участники пати пишут тебе в чате приложения</span>
+      </span>
+      <input v-model="form.show_telegram" class="switch" type="checkbox" />
+    </label>
   </div>
 </template>
 

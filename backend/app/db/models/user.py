@@ -13,6 +13,7 @@ from sqlalchemy import (
     LargeBinary,
     SmallInteger,
     String,
+    false,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -83,7 +84,12 @@ class Profile(TimestampMixin, Base):
     city: Mapped[str | None] = mapped_column(String(64))
     timezone: Mapped[str] = mapped_column(String(64), default="Europe/Moscow")
     discord_tag: Mapped[str | None] = mapped_column(String(64))  # показываем только после мэтча
+    # Ник в Telegram видят мэтчи и участники пати, только если человек сам разрешил; иначе — чат в приложении
+    show_telegram: Mapped[bool] = mapped_column(default=False, server_default=false())
     is_visible: Mapped[bool] = mapped_column(default=True)  # показывать ли в ленте
+    # Возраст поиска в ленте людей («от и до»), взаимный. None — граница по рамкам (domain/age.search_limits)
+    search_age_min: Mapped[int | None] = mapped_column(SmallInteger)
+    search_age_max: Mapped[int | None] = mapped_column(SmallInteger)
     reputation: Mapped[int] = mapped_column(default=0)  # кэш: положительные минус отрицательные отзывы
 
     user: Mapped[User] = relationship(back_populates="profile")

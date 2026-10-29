@@ -6,12 +6,12 @@
 from datetime import datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
 from sqlalchemy import Select, and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload
 
-from app.api.deps import OnboardedUser, SessionDep
+from app.api.deps import NotifierDep, OnboardedUser, SessionDep
 from app.api.lobby_views import DETAIL_OPTIONS, FEED_OPTIONS, lobby_detail_out, lobby_out
 from app.api.schemas import ApplyIn, LanguageCode, LobbyDetailOut, LobbyFeedOut, LobbyIn, LobbyOut
 from app.db.enums import LobbyKind, LobbyStatus, MemberStatus, PlayStyle
@@ -26,7 +26,9 @@ from app.domain.lobbies import (
     effective_status,
     rank_fits,
 )
+from app.bot import texts
 from app.domain.time import utcnow
+from app.services.notify import Note
 from app.services.users import ban_inactive_clause, blocked_user_ids, is_ban_active
 
 router = APIRouter(prefix="/lobbies", tags=["пати"])
@@ -277,11 +279,23 @@ async def get_lobby(lobby_id: int, user: OnboardedUser, session: SessionDep) -> 
 # --- Отклики ---
 
 
+async def _telegram_id(session: AsyncSession, user_id: int) -> int:
+    return await session.scalar(select(User.telegram_id).where(User.id == user_id))
+
+
 @router.post("/{lobby_id}/apply", response_model=LobbyDetailOut)
 async def apply_to_lobby(
-    lobby_id: int, user: OnboardedUser, session: SessionDep, body: ApplyIn | None = None
+    lobby_id: int,
+    user: OnboardedUser,
+    session: SessionDep,
+    notifier: NotifierDep,
+    background: BackgroundTasks,
+    body: ApplyIn | None = None,
 ) -> LobbyDetailOut:
-    """Откликнуться на пати (сообщение создателю — по желанию). Проверяет микрофон и ранг, если пати их требует."""
+    """Откликнуться на пати (сообщение создателю — по желанию). Проверяет микрофон и ранг, если пати их требует.
+
+    Создателю приходит уведомление в боте с кнопкой, открывающей пати.
+    """
     now = utcnow()
     note = body.note if body else None
     lobby = await _get_visible_lobby(session, lobby_id, user, now)
@@ -331,6 +345,11 @@ async def apply_to_lobby(
         membership.note = note
         membership.decided_at = None
     await session.commit()
+
+    name = profile.display_name if profile else user.first_name
+    text = texts.notify_application(name, lobby.title, note)
+    owner = Note(await _telegram_id(session, lobby.owner_id), text, texts.BUTTON_OPEN_LOBBY, f"lobby/{lobby.id}")
+    background.add_task(notifier.send, [owner])
     return await _detail(session, lobby.id, user, now)
 
 
@@ -365,7 +384,14 @@ def _find_member(lobby: Lobby, member_id: int) -> LobbyMember:
 
 
 @router.post("/{lobby_id}/members/{member_id}/accept", response_model=LobbyDetailOut)
-async def accept_member(lobby_id: int, member_id: int, user: OnboardedUser, session: SessionDep) -> LobbyDetailOut:
+async def accept_member(
+    lobby_id: int,
+    member_id: int,
+    user: OnboardedUser,
+    session: SessionDep,
+    notifier: NotifierDep,
+    background: BackgroundTasks,
+) -> LobbyDetailOut:
     """Принять откликнувшегося (member_id — его user_id). Когда места кончаются, пати становится full."""
     now = utcnow()
     lobby = await _get_owned_lobby(session, lobby_id, user, now, lock=True)
@@ -383,11 +409,22 @@ async def accept_member(lobby_id: int, member_id: int, user: OnboardedUser, sess
     if _accepted_count(lobby) >= lobby.slots_total:
         lobby.status = LobbyStatus.FULL
     await session.commit()
+
+    text = texts.notify_accepted(lobby.title)
+    note = Note(await _telegram_id(session, member_id), text, texts.BUTTON_PARTY_CHAT, f"chat/lobby/{lobby.id}")
+    background.add_task(notifier.send, [note])
     return await _detail(session, lobby.id, user, now)
 
 
 @router.post("/{lobby_id}/members/{member_id}/decline", response_model=LobbyDetailOut)
-async def decline_member(lobby_id: int, member_id: int, user: OnboardedUser, session: SessionDep) -> LobbyDetailOut:
+async def decline_member(
+    lobby_id: int,
+    member_id: int,
+    user: OnboardedUser,
+    session: SessionDep,
+    notifier: NotifierDep,
+    background: BackgroundTasks,
+) -> LobbyDetailOut:
     """Отклонить отклик. Повторно откликнуться в эту пати человек уже не сможет."""
     now = utcnow()
     lobby = await _get_owned_lobby(session, lobby_id, user, now)
@@ -398,6 +435,9 @@ async def decline_member(lobby_id: int, member_id: int, user: OnboardedUser, ses
     member.status = MemberStatus.DECLINED
     member.decided_at = now
     await session.commit()
+
+    note = Note(await _telegram_id(session, member_id), texts.notify_declined(lobby.title), texts.BUTTON_FEED, "feed")
+    background.add_task(notifier.send, [note])
     return await _detail(session, lobby.id, user, now)
 
 

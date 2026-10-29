@@ -8,6 +8,7 @@ import PageHeader from '../components/PageHeader.vue'
 import { formatStart } from '../format'
 import { LOBBY_STATUS_LABELS, PLAY_STYLE_LABELS } from '../labels'
 import { ACTIVE_STATUSES, faceitLabel, gameColor, gameTitle, rankName, rankRangeLabel, roleNames } from '../lobby'
+import { openFrom } from '../router'
 import { confirmAction, haptic, openExternal } from '../telegram'
 
 const props = defineProps<{ id: number }>()
@@ -130,6 +131,12 @@ async function cancel() {
   }
 }
 
+// Чат пати растягивается из нажатой кнопки
+function openPartyChat(event: MouseEvent) {
+  haptic.tap()
+  openFrom(event.currentTarget as Element, `/chat/lobby/${props.id}`, 'morph')
+}
+
 function openChat() {
   haptic.tap()
   if (lobby.value?.contact_link) openExternal(lobby.value.contact_link)
@@ -186,6 +193,14 @@ async function copyDiscord(tag: string) {
       </section>
 
       <p v-if="banner" class="banner" :class="`banner--${banner.tone}`">{{ banner.text }}</p>
+
+      <section v-if="inParty" class="card contact">
+        <div>
+          <b>Чат пати</b>
+          <p class="hint">{{ isActive ? 'Договоритесь здесь, без ников в Telegram' : 'Пати закончилась — переписка осталась' }}</p>
+        </div>
+        <button class="btn btn-primary btn-small" type="button" @click="openPartyChat">Открыть</button>
+      </section>
 
       <section v-if="inParty && lobby.contact_link && isActive" class="card contact">
         <div>

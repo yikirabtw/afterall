@@ -17,6 +17,7 @@ export interface JellyOptions {
   stagger: number // мс задержки на каждый шаг от выбранного
   stiffness: number // жёсткость пружины выбранного; соседям мягче с расстоянием
   room: boolean // добавить контейнеру отступы под раздувание, как у оригинала
+  push: boolean // расталкивать ли соседей; false — раздувается только выбранный, остальные стоят на месте
 }
 
 const DEFAULTS: JellyOptions = {
@@ -28,6 +29,7 @@ const DEFAULTS: JellyOptions = {
   stagger: 22,
   stiffness: 580,
   room: false,
+  push: true,
 }
 
 // Сегменты на всю ширину: раздувать их на 20% — это пол-экрана, поэтому только «вздох»
@@ -177,7 +179,7 @@ class Jelly {
 
   private apply(selected: number, instant: boolean) {
     const { swell, barge, shrink, jelly: j, bounce, stagger, stiffness } = this.options
-    const push = selected < 0 ? 0 : ((this.widths[selected] ?? 0) * swell) / 2 + barge
+    const push = selected < 0 || !this.options.push ? 0 : ((this.widths[selected] ?? 0) * swell) / 2 + barge
     const now = performance.now()
     this.chips.forEach((chip, i) => {
       const far = selected < 0 ? 0 : Math.abs(i - selected)

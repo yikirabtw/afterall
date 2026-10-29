@@ -96,7 +96,7 @@ onMounted(() => load())
         <WireCubes class="empty__art" />
         <p class="empty__title">Открытых пати пока нет</p>
         <p class="hint">
-          {{ gameFilter || fitsMe ? 'Попробуй убрать фильтры.' : 'Собери свою — остальные увидят её здесь.' }}
+          {{ gameFilter || fitsMe ? 'Попробуй убрать фильтры.' : 'Собери своё пати — остальные увидят его здесь.' }}
         </p>
         <button v-if="!gameFilter && !fitsMe" class="btn btn-primary btn-small empty__cta" type="button" @click="create">
           Создать пати

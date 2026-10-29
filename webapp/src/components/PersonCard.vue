@@ -10,6 +10,9 @@ import PhotoCarousel from './PhotoCarousel.vue'
 
 const props = defineProps<{ person: Person }>()
 
+// Блик слабее, чем у карточек пати: он ложится на фото человека
+const REFLECT = { glare: 0.22 }
+
 // Сначала общие игры — их и подсвечиваем; выключенных игр (нет в справочнике) не показываем
 const games = computed(() =>
   [...props.person.games]
@@ -31,7 +34,8 @@ const meta = computed(() =>
 </script>
 
 <template>
-  <PhotoCarousel class="person" :photos="person.photos" :name="person.display_name">
+  <!-- Наклон и блик от пальца — как у «металла» пати, но без отражения поверх фото (v-reflect без слоёв) -->
+  <PhotoCarousel v-reflect="REFLECT" class="person" :photos="person.photos" :name="person.display_name">
     <span class="person__match">
       <b>{{ person.compatibility }}%</b>
       <span>совпадение</span>
@@ -61,9 +65,33 @@ const meta = computed(() =>
   border: 1px solid var(--line);
   border-radius: 20px;
   box-shadow: var(--edge-light);
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* «Совпадение N%» — наша изюминка: пиксельные цифры со свечением */
+.person.is-tilting {
+  transition: transform 0.1s linear;
+}
+
+/* Блик в точке касания — только пока палец на карточке */
+.person::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: radial-gradient(circle at var(--gx, 50%) var(--gy, 50%), rgb(255 255 255 / 0.5), transparent 55%);
+  opacity: var(--glare, 0);
+  pointer-events: none;
+  transition: opacity 0.35s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .person {
+    transition: none;
+  }
+}
+
+/* «Совпадение N%» — наша изюминка: крупные цифры со свечением */
 .person__match {
   display: inline-flex;
   align-items: baseline;
@@ -78,12 +106,13 @@ const meta = computed(() =>
   box-shadow: 0 0 16px rgb(255 255 255 / 0.25);
 }
 
+/* Цифры — тем же шрифтом, что имя: пиксельный на маленьком размере читался плохо */
 .person__match b {
-  font-family: var(--font-pixel);
-  font-size: 26px;
+  font-family: var(--font-title);
+  font-size: 22px;
   font-weight: 400;
-  line-height: 0.9;
-  text-shadow: 0 0 6px rgb(255 255 255 / 0.45);
+  line-height: 1;
+  text-shadow: 0 0 6px rgb(255 255 255 / 0.35);
 }
 
 .person__match span {
@@ -151,7 +180,7 @@ const meta = computed(() =>
   margin: 10px 0 0;
   font-size: 13px;
   font-weight: 600;
-  color: var(--g-700);
+  color: rgb(255 255 255 / 0.8); /* поверх фото — всегда светлый, в любой теме */
 }
 
 .person__reasons::before {

@@ -31,8 +31,8 @@ const statusBadge = computed(() => {
   >
     <!-- Металл: размытое отражение «полосы света», полоса блеска и блик под пальцем (v-reflect) -->
     <span class="lobby__fx" aria-hidden="true">
-      <span class="lobby__reflection" :style="{ backgroundImage: `url(${reflection})` }" />
-      <span class="lobby__sheen" />
+      <span class="lobby__reflection" data-reflect="reflection" :style="{ backgroundImage: `url(${reflection})` }" />
+      <span class="lobby__sheen" data-reflect="sheen" />
       <span class="lobby__glare" />
     </span>
     <header class="lobby__top">
@@ -111,19 +111,15 @@ const statusBadge = computed(() => {
   border-radius: inherit;
 }
 
-/* Отражение едет при прокрутке и чуть против наклона */
+/* Отражение едет при прокрутке и чуть против наклона — transform ставит v-reflect */
 .lobby__reflection {
   inset: -45% -20%;
   background-position: center;
   background-size: cover;
-  opacity: 0.17;
-  mix-blend-mode: screen;
-  transform: translate3d(
-      calc(var(--tilt-x, 0) * 1px),
-      calc((var(--ref-scroll, 0) * var(--ref-travel, 90) + var(--tilt-y, 0)) * 1px),
-      0
-    )
-    rotate(-8deg);
+  opacity: var(--reflect-opacity);
+  filter: var(--reflect-filter);
+  mix-blend-mode: var(--reflect-blend);
+  will-change: transform;
   transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -135,7 +131,7 @@ const statusBadge = computed(() => {
 .lobby__sheen {
   inset: 0;
   background: linear-gradient(105deg, transparent 38%, rgb(var(--glow-rgb) / 0.07) 50%, transparent 62%);
-  transform: translateX(calc(var(--ref-scroll, 0) * 160%));
+  will-change: transform;
 }
 
 .lobby__glare {
@@ -143,13 +139,6 @@ const statusBadge = computed(() => {
   background: radial-gradient(circle at var(--gx, 50%) var(--gy, 50%), rgb(var(--glow-rgb) / 0.3), transparent 55%);
   opacity: var(--glare, 0);
   transition: opacity 0.35s ease;
-}
-
-/* В светлой теме свет «отражается» тёмным: та же картинка, инвертированная */
-:global([data-theme='light']) .lobby__reflection {
-  filter: invert(1);
-  mix-blend-mode: multiply;
-  opacity: 0.08;
 }
 
 @media (prefers-reduced-motion: reduce) {

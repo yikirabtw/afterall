@@ -8,6 +8,7 @@ from app.api.photo_links import make_photo_url
 from app.api.telegram_auth import InitDataError, validate_init_data
 from app.db.models import User
 from app.domain.time import utcnow
+from app.services.notify import Notifier
 from app.services.users import is_ban_active, upsert_telegram_user
 
 
@@ -27,6 +28,13 @@ async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
 
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
+
+
+def get_notifier(request: Request) -> Notifier:
+    return request.app.state.notifier
+
+
+NotifierDep = Annotated[Notifier, Depends(get_notifier)]
 
 
 def _unauthorized(code: str) -> HTTPException:

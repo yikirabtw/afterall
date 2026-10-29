@@ -2,7 +2,7 @@ from collections.abc import AsyncGenerator
 from typing import Any
 
 from aiogram.client.session.base import BaseSession
-from aiogram.methods import TelegramMethod
+from aiogram.methods import SendMessage, TelegramMethod
 
 
 class RecordingSession(BaseSession):
@@ -21,3 +21,8 @@ class RecordingSession(BaseSession):
 
     async def close(self) -> None:
         pass
+
+
+def outbox(notifier) -> list[SendMessage]:
+    """Что отправил бот уведомлений (фикстура notifier) — по порядку."""
+    return [request for request in notifier.bot.session.requests if isinstance(request, SendMessage)]

@@ -2,10 +2,16 @@
 import { ref } from 'vue'
 
 import type { Match } from '../api/types'
+import { openFrom } from '../router'
 import { haptic, openExternal } from '../telegram'
 
-// Контакты после мэтча: ник в Telegram открывает чат, Discord копируется
-defineProps<{ match: Match }>()
+// Контакты после мэтча: «Написать» — чат в приложении; ник в Telegram — если человек его открыл; Discord копируется
+const props = defineProps<{ match: Match }>()
+
+function write(event: MouseEvent) {
+  haptic.tap()
+  openFrom(event.currentTarget as Element, `/chat/direct/${props.match.user_id}`, 'morph')
+}
 
 const copied = ref(false)
 
@@ -22,23 +28,13 @@ async function copyDiscord(tag: string) {
 
 <template>
   <div class="contacts">
-    <button
-      v-if="match.username"
-      class="btn btn-primary btn-small"
-      type="button"
-      @click="openExternal(`https://t.me/${match.username}`)"
-    >
-      Написать <span class="contacts__nick">@{{ match.username }}</span>
-      <svg class="btn__arrow" viewBox="0 0 14 14" aria-hidden="true">
-        <path d="M3 11L11 3M5 3h6v6" fill="none" stroke="currentColor" stroke-width="1.5" />
-      </svg>
+    <button class="btn btn-primary btn-small" type="button" @click="write">Написать</button>
+    <button v-if="match.username" class="chip" type="button" @click="openExternal(`https://t.me/${match.username}`)">
+      <span class="contacts__nick">@{{ match.username }}</span> ↗
     </button>
     <button v-if="match.discord_tag" class="chip" type="button" @click="copyDiscord(match.discord_tag)">
       {{ copied ? 'Скопировано' : `Discord: ${match.discord_tag}` }}
     </button>
-    <p v-if="!match.username && !match.discord_tag" class="hint">
-      У человека не указан ни ник в Telegram, ни Discord — позовите друг друга в пати.
-    </p>
   </div>
 </template>
 

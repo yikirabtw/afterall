@@ -1,7 +1,9 @@
-from datetime import date
+from datetime import timedelta
 
 import httpx
 import pytest
+from aiogram import Bot
+from fakes import RecordingSession
 from initdata import BOT_TOKEN, auth, make_init_data
 from players import Player
 from sqlalchemy import create_engine
@@ -15,7 +17,15 @@ from app.db.base import Base
 from app.db.enums import AgeGroup, LookingFor, PlayStyle
 from app.db.models import Game, GameRank, GameRole, Profile, User, UserGame
 from app.db.session import enable_sqlite_foreign_keys
+from app.domain.age import age_group_for, years_ago
 from app.domain.time import utcnow
+from app.services.notify import Notifier
+
+ADMIN_TELEGRAM_ID = 777  # админ из настроек (ADMIN_TELEGRAM_IDS) — ему приходят жалобы
+WEBAPP_URL = "https://app.example"
+
+# Возраст тестового игрока по умолчанию — по группе (раньше у всех была одна дата рождения, 17 лет)
+DEFAULT_AGE = {AgeGroup.TEEN_13_15: 14, AgeGroup.TEEN_16_17: 17, AgeGroup.ADULT: 25}
 
 
 @pytest.fixture
@@ -41,9 +51,17 @@ async def session_maker():
 
 
 @pytest.fixture
-async def client(session_maker):
+def notifier() -> Notifier:
+    """Уведомления бота: вместо Telegram запросы складываются в notifier.bot.session.requests."""
+    return Notifier(Bot("42:TEST", session=RecordingSession()), WEBAPP_URL, frozenset({ADMIN_TELEGRAM_ID}))
+
+
+@pytest.fixture
+async def client(session_maker, notifier):
     """HTTP-клиент к API поверх тестовой базы, без сети."""
-    app = create_app(bot_token=BOT_TOKEN, session_maker=session_maker, cors_origins=["https://app.example"])
+    app = create_app(
+        bot_token=BOT_TOKEN, session_maker=session_maker, cors_origins=[WEBAPP_URL], notifier=notifier
+    )
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as c:
         yield c
 
@@ -71,7 +89,10 @@ async def world(session_maker) -> dict[str, int]:
 
 @pytest.fixture
 def make_player(session_maker, world):
-    """Создаёт пользователя, уже прошедшего онбординг. games — {"dota": "guardian", "cs2": None}, первая — основная."""
+    """Создаёт пользователя, уже прошедшего онбординг. games — {"dota": "guardian", "cs2": None}, первая — основная.
+
+    age — точный возраст (группа считается по нему); без него — типичный возраст группы age_group.
+    """
     counter = iter(range(1, 1000))
 
     async def _make(
@@ -85,17 +106,21 @@ def make_player(session_maker, world):
         looking_for: LookingFor = LookingFor.BOTH,
         languages: list[str] | None = None,
         visible: bool = True,
+        age: int | None = None,
+        search_age: tuple[int | None, int | None] = (None, None),
     ) -> Player:
         number = next(counter)
         telegram_id, username = 10_000 + number, f"player{number}"
         games = {"dota": dota_rank} if games is None else games
+        # День рождения был месяц назад — возраст не поменяется посреди теста
+        birth_date = years_ago(utcnow().date(), DEFAULT_AGE[age_group] if age is None else age) - timedelta(days=30)
         async with session_maker.begin() as session:
             user = User(
                 telegram_id=telegram_id,
                 first_name=username,
                 username=username,
-                birth_date=date(2009, 1, 1),
-                age_group=age_group,
+                birth_date=birth_date,
+                age_group=age_group_for(birth_date),
                 onboarded_at=utcnow(),
                 last_seen_at=utcnow(),
                 is_banned=banned,
@@ -108,6 +133,8 @@ def make_player(session_maker, world):
                 looking_for=looking_for,
                 languages=languages or ["ru"],
                 is_visible=visible,
+                search_age_min=search_age[0],
+                search_age_max=search_age[1],
             )
             user.games = [
                 UserGame(game_id=world[game], rank_id=world[rank] if rank else None, is_main=index == 0)
@@ -117,7 +144,10 @@ def make_player(session_maker, world):
             await session.flush()
             user_id = user.id
         return Player(
-            user_id, username, auth(make_init_data(user_id=telegram_id, first_name=username, username=username))
+            user_id,
+            username,
+            auth(make_init_data(user_id=telegram_id, first_name=username, username=username)),
+            telegram_id,
         )
 
     return _make

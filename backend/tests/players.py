@@ -8,3 +8,4 @@ class Player:
     id: int
     username: str
     headers: dict[str, str]
+    telegram_id: int = 0

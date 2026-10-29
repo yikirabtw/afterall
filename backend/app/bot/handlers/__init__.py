@@ -1,6 +1,6 @@
 from aiogram import Router
 
-from app.bot.handlers import fallback, help, start
+from app.bot.handlers import fallback, help, moderation, start
 
 
 def build_router() -> Router:
@@ -9,6 +9,7 @@ def build_router() -> Router:
     router.include_routers(
         start.create_router(),
         help.create_router(),
+        moderation.create_router(),
         fallback.create_router(),  # последним: ловит всё, что не поймали остальные
     )
     return router

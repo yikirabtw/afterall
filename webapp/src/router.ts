@@ -2,6 +2,9 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 
 import { originOf, rememberOrigin, reveal, takeOrigin, type RevealShape } from './reveal'
 import { session } from './stores/session'
+import BlockedView from './views/BlockedView.vue'
+import ChatsView from './views/ChatsView.vue'
+import ChatView from './views/ChatView.vue'
 import CreateLobbyView from './views/CreateLobbyView.vue'
 import EditGamesView from './views/EditGamesView.vue'
 import EditProfileView from './views/EditProfileView.vue'
@@ -12,6 +15,7 @@ import MatchesView from './views/MatchesView.vue'
 import OnboardingView from './views/onboarding/OnboardingView.vue'
 import PeopleView from './views/PeopleView.vue'
 import ProfileView from './views/ProfileView.vue'
+import ShopView from './views/ShopView.vue'
 
 export const router = createRouter({
   // Адресная строка в мини-приложении не видна, а в её #-части Telegram передаёт initData —
@@ -26,6 +30,8 @@ export const router = createRouter({
       children: [
         { path: 'feed', component: FeedView },
         { path: 'people', component: PeopleView },
+        { path: 'shop', component: ShopView },
+        { path: 'chats', component: ChatsView },
         { path: 'profile', component: ProfileView },
       ],
     },
@@ -33,8 +39,14 @@ export const router = createRouter({
     { path: '/create', component: CreateLobbyView },
     { path: '/lobby/:id(\\d+)', component: LobbyView, props: (route) => ({ id: Number(route.params.id) }) },
     { path: '/matches', component: MatchesView },
+    {
+      path: '/chat/:kind(direct|lobby)/:target(\\d+)',
+      component: ChatView,
+      props: (route) => ({ kind: route.params.kind, target: Number(route.params.target) }),
+    },
     { path: '/profile/edit', component: EditProfileView },
     { path: '/profile/games', component: EditGamesView },
+    { path: '/profile/blocked', component: BlockedView },
     { path: '/:pathMatch(.*)*', redirect: '/feed' },
   ],
 })
@@ -77,4 +89,17 @@ export function openFrom(el: Element, path: string, shape: RevealShape = 'circle
   const origin = originOf(el)
   rememberOrigin(path, origin, shape)
   void reveal(origin, () => router.push(path), 'open', shape)
+}
+
+// Кнопка в уведомлении бота открывает приложение сразу на нужном экране: ссылка вида …/?open=chat/direct/12
+// (её собирает сервер, services/notify.py). Берём только знакомые экраны и только при первом запуске
+const START_LINK = /^(chat\/(direct|lobby)\/\d+|lobby\/\d+|matches|feed|people|chats)$/
+let startLinkUsed = false
+
+export async function openStartLink(): Promise<void> {
+  if (startLinkUsed) return
+  startLinkUsed = true
+  const target = new URLSearchParams(window.location.search).get('open')
+  // Лента к этому моменту уже открыта (App.vue) — «Назад» с этого экрана вернёт в приложение, а не закроет его
+  if (target && START_LINK.test(target)) await router.push(`/${target}`)
 }

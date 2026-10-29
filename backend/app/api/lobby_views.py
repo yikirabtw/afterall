@@ -80,7 +80,7 @@ def _member_out(member: LobbyMember, game_id: int | None, with_contacts: bool) -
         status=member.status,
         is_owner=member.is_owner,
         note=member.note,
-        username=user.username if show_contacts else None,
+        username=user.username if show_contacts and profile and profile.show_telegram else None,
         discord_tag=profile.discord_tag if show_contacts and profile else None,
     )
 

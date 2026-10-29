@@ -21,6 +21,7 @@ const myInitial = computed(() => session.me?.profile?.display_name.charAt(0).toU
       <div class="lamp" aria-hidden="true">
         <span class="lamp__cord" />
         <span class="lamp__shade" />
+        <span class="lamp__glow" />
         <span class="lamp__beam" />
       </div>
 
@@ -36,7 +37,7 @@ const myInitial = computed(() => session.me?.profile?.display_name.charAt(0).toU
         </span>
       </div>
       <!-- «Ты и Лера», а не «Вы с Лера»: имена не склоняются -->
-      <p class="overlay__text">Ты и {{ match.display_name }} понравились друг другу. Напиши первым — договоритесь о катке.</p>
+      <p class="overlay__text">Ты и {{ match.display_name }} понравились друг другу. Напишите первым?</p>
       <MatchContacts :match="match" class="overlay__contacts" />
       <button class="btn btn-ghost" type="button" @click="emit('close')">Смотреть дальше</button>
     </div>
@@ -96,17 +97,35 @@ const myInitial = computed(() => session.me?.profile?.display_name.charAt(0).toU
   box-shadow: 0 6px 0 -2px #fff, 0 8px 24px 4px rgb(255 255 255 / 0.55);
 }
 
-/* Конус света вниз от лампы */
+/*
+  Конус света: верх трапеции — ровно ширина отверстия абажура (84px) и прямо под ним,
+  поэтому луч выходит из лампы при любой ширине экрана; книзу расходится и гаснет, края мягкие.
+*/
 .lamp__beam {
   position: absolute;
   top: calc(9vh + 44px);
   left: 50%;
-  width: 150vw;
-  height: 70vh;
+  width: min(130vw, 760px);
+  height: 74vh;
   transform: translateX(-50%);
-  background: radial-gradient(ellipse 34% 100% at 50% 0%, rgb(255 255 255 / 0.32), rgb(255 255 255 / 0.06) 55%, transparent 75%);
-  clip-path: polygon(44% 0, 56% 0, 80% 100%, 20% 100%);
-  filter: blur(6px);
+  clip-path: polygon(calc(50% - 42px) 0, calc(50% + 42px) 0, 100% 100%, 0 100%);
+  background: linear-gradient(to bottom, rgb(255 255 255 / 0.34), rgb(255 255 255 / 0.12) 40%, transparent 92%);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 30%, #000 70%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 30%, #000 70%, transparent);
+  animation: flicker 3.2s infinite;
+}
+
+/* Рассеянный свет вокруг луча — из той же точки под лампой; выше отверстия плавно гаснет, без резкой границы */
+.lamp__glow {
+  position: absolute;
+  top: 9vh;
+  left: 50%;
+  width: 380px;
+  height: 58vh;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse 50% 70% at 50% 46px, rgb(255 255 255 / 0.16), transparent 70%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 30px, #000 70px);
+  mask-image: linear-gradient(to bottom, transparent 30px, #000 70px);
   animation: flicker 3.2s infinite;
 }
 
@@ -194,7 +213,8 @@ const myInitial = computed(() => session.me?.profile?.display_name.charAt(0).toU
 
 @media (prefers-reduced-motion: reduce) {
   .overlay,
-  .lamp__beam {
+  .lamp__beam,
+  .lamp__glow {
     animation: none;
   }
 }

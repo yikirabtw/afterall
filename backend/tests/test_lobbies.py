@@ -250,9 +250,10 @@ async def test_apply_and_accept_reveals_contacts(client, make_player, create_lob
 
     peer_view = await detail(client, lobby["id"], peer)
     assert peer_view["contact_link"] == "https://t.me/party"
+    # Ник в Telegram — только тем, кто разрешил его показывать; Discord — всем принятым
     assert [(m["user_id"], m["username"], m["discord_tag"]) for m in peer_view["members"]] == [
-        (owner.id, owner.username, f"{owner.username}_dc"),
-        (peer.id, peer.username, f"{peer.username}_dc"),
+        (owner.id, None, f"{owner.username}_dc"),
+        (peer.id, None, f"{peer.username}_dc"),
     ]
 
 
