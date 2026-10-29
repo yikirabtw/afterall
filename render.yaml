@@ -13,5 +13,5 @@ services:
       - key: DATABASE_URL
         sync: false # строка подключения из Neon (postgresql://...) — ввести в панели
       - key: ADMIN_TELEGRAM_IDS
-        sync: false # кому приходят жалобы с кнопками бана, JSON-список: [123456789] — ввести в панели
+        sync: false # кому приходят жалобы с кнопками бана: 123456789 (несколько — через запятую) — ввести в панели
       # PUBLIC_URL не нужен: Render сам передаёт адрес сервиса в RENDER_EXTERNAL_URL

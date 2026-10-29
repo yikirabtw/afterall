@@ -1,7 +1,8 @@
 from pathlib import Path
+from typing import Annotated
 
-from pydantic import AliasChoices, Field, SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import AliasChoices, Field, SecretStr, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 
@@ -34,9 +35,17 @@ class Settings(BaseSettings):
     # Собранное мини-приложение (webapp/dist). Если папка есть — API отдаёт его по адресу /
     static_dir: Path | None = None
 
-    # Telegram ID админов (JSON-список, например [123456789]): им приходят жалобы с кнопками бана,
-    # даже если в базе у них нет роли admin. Задаётся в панели хостинга.
-    admin_telegram_ids: list[int] = []
+    # Telegram ID админов: им приходят жалобы с кнопками бана, даже если в базе у них нет роли admin.
+    # Задаётся в панели хостинга: «123456789», «1, 2» или «[1, 2]» — подойдёт любая запись
+    admin_telegram_ids: Annotated[list[int], NoDecode] = []
+
+    @field_validator("admin_telegram_ids", mode="before")
+    @classmethod
+    def _split_ids(cls, value: object) -> object:
+        # Строку из переменной окружения разбираем сами: без скобок JSON-разбор падал, и сервер не стартовал
+        if isinstance(value, str):
+            return [part for part in value.replace("[", " ").replace("]", " ").replace(",", " ").split()]
+        return value
 
 
 settings = Settings()
