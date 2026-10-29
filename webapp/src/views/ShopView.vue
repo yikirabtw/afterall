@@ -21,6 +21,8 @@ import {
 } from '../shop'
 import { session, setMe } from '../stores/session'
 import { lobbiesTab, shopTab } from '../stores/ui'
+import { ITEM_THEMES } from '../cosmetics'
+import { setTheme, theme } from '../stores/theme'
 import { confirmAction, haptic, openInvoice } from '../telegram'
 
 // Магазин — пока витрина (решение пользователя): всё с ценами, но покупки «Скоро».
@@ -130,6 +132,57 @@ async function cancelRenewal() {
     haptic.success()
   } catch (e) {
     buyError.value = errorMessage(e)
+  }
+}
+
+// --- Свои вещи: надеть / снять, тему — включить; Premium — вещь в подарок раз в месяц ---
+
+const equipped = computed(() => session.me!.profile?.equipped ?? {})
+const SLOT_PREFIX: Record<string, string> = { frame: 'frame-', background: 'bg-', badge: 'badge-', match: 'match-' }
+
+function owns(id: string): boolean {
+  return session.me!.items.includes(id) || Boolean(product(id)?.owned)
+}
+
+function slotOf(id: string): string | undefined {
+  return Object.keys(SLOT_PREFIX).find((slot) => id.startsWith(SLOT_PREFIX[slot]!))
+}
+
+const itemTheme = (id: string) => ITEM_THEMES.find((option) => option.item === id)
+
+async function toggleWear(id: string) {
+  haptic.tap()
+  const themeOption = itemTheme(id)
+  if (themeOption) {
+    setTheme(theme.value === themeOption.value ? 'dark' : themeOption.value)
+    return
+  }
+  const slot = slotOf(id)
+  if (!slot) return
+  const next: Record<string, string | null> = { ...equipped.value }
+  next[slot] = equipped.value[slot] === id ? null : id
+  try {
+    setMe(await api.equip(next))
+    haptic.success()
+  } catch (e) {
+    buyError.value = errorMessage(e)
+  }
+}
+
+function isWorn(id: string): boolean {
+  const themeOption = itemTheme(id)
+  return themeOption ? theme.value === themeOption.value : Object.values(equipped.value).includes(id)
+}
+
+async function takeGift(id: string) {
+  haptic.tap()
+  try {
+    setMe(await api.takeGift(id))
+    await loadShop()
+    haptic.success()
+  } catch (e) {
+    buyError.value = errorMessage(e)
+    haptic.error()
   }
 }
 
@@ -405,9 +458,9 @@ function openMyLobbies() {
         <button v-for="item in items" :key="item.id" class="tile" type="button" @click="pick(item)">
           <CosmeticPreview :item="item" />
           <span class="tile__name">{{ item.name }}</span>
-          <span class="tile__price" :class="{ 'tile__price--earn': item.price === null || product(item.id)?.owned }">
+          <span class="tile__price" :class="{ 'tile__price--earn': item.price === null || owns(item.id) }">
             {{
-              item.price === null ? 'За активность' : product(item.id)?.owned ? 'Есть' : `${priceOf(item.id, item.price)} ⭐`
+              owns(item.id) ? (isWorn(item.id) ? 'Надето' : 'Есть') : item.price === null ? 'За активность' : `${priceOf(item.id, item.price)} ⭐`
             }}
           </span>
         </button>
@@ -430,9 +483,22 @@ function openMyLobbies() {
                 <b>{{ picked.price }} ⭐</b>
                 <span class="hint">с подпиской — {{ withDiscount(picked.price) }} ⭐</span>
               </p>
-              <p v-if="picked.price !== null && product(picked.id)?.owned" class="item-earn">Уже у тебя</p>
+              <template v-if="owns(picked.id)">
+                <p class="item-earn">Уже у тебя</p>
+                <button class="btn btn-primary" type="button" @click="toggleWear(picked.id)">
+                  {{ isWorn(picked.id) ? (itemTheme(picked.id) ? 'Выключить тему' : 'Снять') : itemTheme(picked.id) ? 'Включить тему' : 'Надеть' }}
+                </button>
+              </template>
               <button
-                v-else-if="picked.price !== null"
+                v-else-if="picked.price !== null && session.me!.gift_available"
+                class="btn btn-outline"
+                type="button"
+                @click="takeGift(picked.id)"
+              >
+                🎁 Забрать в подарок (Premium, раз в месяц)
+              </button>
+              <button
+                v-if="!owns(picked.id) && picked.price !== null"
                 class="btn btn-primary"
                 type="button"
                 :aria-disabled="!payments"

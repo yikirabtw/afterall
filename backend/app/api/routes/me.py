@@ -7,8 +7,9 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, PhotoUrl, SessionDep
 from app.api.schemas import MeOut, PlanOut
-from app.db.models import User, UserGame
+from app.db.models import User, UserGame, UserItem
 from app.domain.time import utcnow
+from app.services.cosmetics import gift_taken_recently
 from app.services.plans import plan_of
 
 router = APIRouter(tags=["профиль"])
@@ -31,6 +32,8 @@ async def load_me(session: AsyncSession, user_id: int, photo_url: Callable[[int]
     me = MeOut.model_validate(user, context={"photo_url": photo_url})
     plan, until = await plan_of(session, user_id, utcnow())
     me.plan = PlanOut(plan=plan, until=until)
+    me.items = sorted(await session.scalars(select(UserItem.item_id).where(UserItem.user_id == user_id)))
+    me.gift_available = plan == "premium" and not await gift_taken_recently(session, user_id, utcnow())
     return me
 
 

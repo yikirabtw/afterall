@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import { assetUrl } from '../api/client'
 import reflection from '../assets/reflection.jpg'
 import smoke from '../assets/splash-bg-poster.jpg'
+import { badgeCells } from '../cosmetics'
 import type { Cosmetic } from '../shop'
 import { session } from '../stores/session'
 
@@ -16,18 +17,7 @@ const photo = computed(() => {
   return first ? assetUrl(first.url) : null
 })
 
-// Пиксельные значки 7×7: # — закрашенная клетка
-const BADGES: Record<string, string[]> = {
-  night: ['..###..', '.##....', '##.....', '##.....', '##.....', '.##....', '..###..'],
-  heart: ['.##.##.', '#######', '#######', '#######', '.#####.', '..###..', '...#...'],
-  star: ['...#...', '...#...', '#######', '.#####.', '..###..', '.##.##.', '.#...#.'],
-  crown: ['#..#..#', '#.###.#', '#######', '#######', '#######', '.......', '#######'],
-}
-
-const cells = computed(() => {
-  const rows = BADGES[props.item.style] ?? []
-  return rows.flatMap((row, y) => [...row].map((cell, x) => (cell === '#' ? { x, y } : null)).filter((c) => c !== null))
-})
+const cells = computed(() => badgeCells(props.item.style))
 
 // Палитры тем: фон, карточка, текст
 const THEMES: Record<string, [string, string, string]> = {

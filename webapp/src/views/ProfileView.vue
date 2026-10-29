@@ -7,6 +7,8 @@ import { formatAge } from '../format'
 import { LANGUAGES, LOOKING_FOR, PLAY_STYLE_LABELS } from '../labels'
 import BorderGlow from '../components/BorderGlow.vue'
 import FaceitLevel from '../components/FaceitLevel.vue'
+import PixelBadge from '../components/PixelBadge.vue'
+import { ITEM_THEMES } from '../cosmetics'
 import PlanBadge from '../components/PlanBadge.vue'
 import { faceitColor, faceitLevel } from '../lobby'
 import { gameById, session } from '../stores/session'
@@ -117,6 +119,9 @@ const THEMES: { value: Theme; label: string; icon: string }[] = [
   },
 ]
 
+// Темы из магазина — отдельной строкой, если куплены (в переключатель «Тёмная / Светлая» они не влезают)
+const shopThemes = computed(() => ITEM_THEMES.filter((option) => me.value.items.includes(option.item)))
+
 // Новая тема разливается кругом от нажатой кнопки
 function chooseTheme(value: Theme, event: MouseEvent) {
   if (theme.value === value) return
@@ -144,7 +149,11 @@ function edit(event: Event) {
       @pointerup="onPointerUp"
       @click.capture="onClickCapture"
     >
-      <h1 class="hero__name">{{ profile.display_name }}<PlanBadge :plan="me.plan.plan" /></h1>
+      <h1 class="hero__name">
+        {{ profile.display_name }}<PixelBadge v-if="profile.equipped.badge" :item="profile.equipped.badge" :size="20" /><PlanBadge
+          :plan="me.plan.plan"
+        />
+      </h1>
       <p class="hero__meta">
         <span v-if="age !== null">{{ formatAge(age) }}</span>
         <span v-if="profile.city">{{ profile.city }}</span>
@@ -242,6 +251,21 @@ function edit(event: Event) {
                 stroke-linejoin="round"
               />
             </svg>
+            {{ option.label }}
+          </button>
+        </span>
+      </div>
+      <div v-if="shopThemes.length" class="list__row">
+        <span>Темы из магазина</span>
+        <span class="chips">
+          <button
+            v-for="option in shopThemes"
+            :key="option.value"
+            type="button"
+            class="chip"
+            :class="{ 'chip--on': theme === option.value }"
+            @click="chooseTheme(option.value, $event)"
+          >
             {{ option.label }}
           </button>
         </span>

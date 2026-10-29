@@ -41,6 +41,41 @@
   color-scheme: dark;
 }
 
+/* --- Темы из магазина: тёмные, тонированные --- */
+:root[data-theme='blue'] {
+  --g-0: #04060d;
+  --g-50: #0a0f1c;
+  --g-100: #121a2e;
+  --g-200: #1c2640;
+  --g-300: #29355a;
+  --g-400: #3f4e7d;
+  --g-500: #7584ad;
+  --g-600: #9aa8cf;
+  --g-700: #c8d3f0;
+  --g-800: #dde5f8;
+  --g-900: #eef2fc;
+  --g-950: #f7f9fe;
+  --glow-rgb: 169 196 255;
+  --lamp: #c8d6ff;
+}
+
+:root[data-theme='sepia'] {
+  --g-0: #0b0805;
+  --g-50: #15100a;
+  --g-100: #201810;
+  --g-200: #2e2318;
+  --g-300: #3f3022;
+  --g-400: #5c4834;
+  --g-500: #9a8466;
+  --g-600: #b9a385;
+  --g-700: #dccab0;
+  --g-800: #e9dcc6;
+  --g-900: #f4ecdf;
+  --g-950: #faf5ec;
+  --glow-rgb: 236 217 182;
+  --lamp: #f1e2c4;
+}
+
 /* --- Шкала и свет: светлая тема --- */
 :root[data-theme='light'] {
   --g-0: #ffffff;
@@ -658,6 +693,51 @@ textarea.input {
   font-size: 24px;
   font-weight: 400;
   text-transform: uppercase;
+}
+
+/* --- Косметика на живых экранах: рамки аватаров и фоны анкет (src/cosmetics.ts) --- */
+
+.look-frame--neon {
+  border-color: var(--lamp) !important;
+  box-shadow:
+    0 0 8px rgb(var(--glow-rgb) / 0.9),
+    0 0 22px 3px rgb(var(--glow-rgb) / 0.35);
+}
+
+.look-frame--pixel {
+  border-radius: 0 !important;
+  box-shadow:
+    0 -3px 0 0 var(--lamp),
+    0 3px 0 0 var(--lamp),
+    -3px 0 0 0 var(--lamp),
+    3px 0 0 0 var(--lamp);
+}
+
+.look-frame--spikes {
+  outline: 2px dashed var(--lamp);
+  outline-offset: 3px;
+  box-shadow: 0 0 10px rgb(var(--glow-rgb) / 0.5);
+}
+
+.look-frame--lamp {
+  border-top-color: var(--lamp) !important;
+  box-shadow: 0 -10px 22px -6px rgb(var(--glow-rgb) / 0.85);
+}
+
+.look-bg--smoke {
+  background-image: url('./assets/splash-bg-poster.jpg');
+}
+
+.look-bg--light {
+  background-image: url('./assets/reflection.jpg');
+  filter: saturate(0);
+}
+
+.look-bg--grid {
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.12) 1px, transparent 1px);
+  background-size: 10px 10px;
 }
 
 /* --- Бейджи --- */

@@ -199,3 +199,11 @@ REFUND_NOT_FOUND = "Такого платежа нет."
 REFUND_ALREADY = "По этому платежу уже был возврат."
 REFUND_DONE = "Готово: звёзды вернули, купленное забрали."
 
+
+def admin_item_help(items: list[str]) -> str:
+    return "Выдать вещь: /item <id> — себе, /item @ник <id> — человеку.\nВещи: " + ", ".join(items)
+
+
+def item_given(name: str, item_id: str) -> str:
+    return f"Готово: {escape(item_id)} у {escape(name)}."
+

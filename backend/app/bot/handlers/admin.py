@@ -15,7 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot import texts
 from app.db.enums import PlanKind, UserRole
-from app.db.models import Profile, User
+from app.db.models import Profile, User, UserItem
+from app.domain.cosmetics import ALL_ITEMS
 from app.domain.plans import GRANT_DEFAULT, GRANT_MAX_DAYS
 from app.domain.time import utcnow
 from app.services.plans import grant, revoke
@@ -82,7 +83,30 @@ async def change_plan(
             logger.info("Не удалось сообщить о подписке пользователю %s", target.id)
 
 
+async def give_item(
+    message: Message, command: CommandObject, session: AsyncSession, user: User, admin_ids: frozenset[int]
+) -> None:
+    """/item frame-neon — себе, /item @ник frame-neon — человеку. Для проверки косметики, пока оплата выключена."""
+    if not can_grant(user, admin_ids):
+        await message.answer(texts.FALLBACK)
+        return
+    tokens = (command.args or "").split()
+    item_id = next((token for token in tokens if token in ALL_ITEMS), None)
+    who = next((token for token in tokens if token.startswith("@") or token.isdigit()), None)
+    if item_id is None:
+        await message.answer(texts.admin_item_help(sorted(ALL_ITEMS)))
+        return
+    target = user if who is None else await _find(session, who)
+    if target is None:
+        await message.answer(texts.ADMIN_USER_NOT_FOUND)
+        return
+    if await session.get(UserItem, (target.id, item_id)) is None:
+        session.add(UserItem(user_id=target.id, item_id=item_id, acquired_at=utcnow(), source="admin"))
+    await message.answer(texts.item_given(await _name(session, target), item_id))
+
+
 def create_router() -> Router:
     router = Router(name="admin")
     router.message.register(change_plan, Command("premium", "plus", "free"))
+    router.message.register(give_item, Command("item"))
     return router

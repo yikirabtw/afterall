@@ -92,6 +92,8 @@ class Profile(TimestampMixin, Base):
     search_age_max: Mapped[int | None] = mapped_column(SmallInteger)
     # Наборы настроек ленты (Premium): [{name, mode, game_id, need_mic, play_style, language}], до 5
     feed_presets: Mapped[list[dict] | None] = mapped_column(JSON)
+    # Надетая косметика: {"frame": id, "background": id, "badge": id, "match": id} — только свои вещи
+    equipped: Mapped[dict | None] = mapped_column(JSON)
     reputation: Mapped[int] = mapped_column(default=0)  # кэш: положительные минус отрицательные отзывы
 
     user: Mapped[User] = relationship(back_populates="profile")

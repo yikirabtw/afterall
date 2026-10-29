@@ -11,14 +11,22 @@ defineProps<{ match: Match }>()
 const emit = defineEmits<{ close: [] }>()
 
 const myPhoto = computed(() => session.me?.photos[0] ?? null)
+// Своя сцена мэтча из косметики: красная лампа или неоновая вывеска вместо лампы
+const scene = computed(() => session.me?.profile?.equipped.match ?? null)
 const myInitial = computed(() => session.me?.profile?.display_name.charAt(0).toUpperCase() ?? '?')
 </script>
 
 <template>
   <Teleport to="body">
-    <div class="overlay theme-dark" role="dialog" aria-label="Взаимный лайк">
+    <div
+      class="overlay theme-dark"
+      :class="{ 'overlay--red': scene === 'match-red', 'overlay--sign': scene === 'match-neon' }"
+      role="dialog"
+      aria-label="Взаимный лайк"
+    >
+      <span v-if="scene === 'match-neon'" class="sign" aria-hidden="true">MATCH</span>
       <!-- Лампа над экраном: свет падает на надпись, как в референсе со светом -->
-      <div class="lamp" aria-hidden="true">
+      <div v-else class="lamp" aria-hidden="true">
         <span class="lamp__cord" />
         <span class="lamp__shade" />
         <span class="lamp__glow" />
@@ -94,13 +102,43 @@ const myInitial = computed(() => session.me?.profile?.display_name.charAt(0).toU
   margin-left: -46px;
   border-radius: 46px 46px 6px 6px;
   background: linear-gradient(to bottom, var(--g-300), var(--g-100));
-  box-shadow: 0 6px 0 -2px #fff, 0 8px 24px 4px rgb(255 255 255 / 0.55);
+  box-shadow: 0 6px 0 -2px rgb(var(--light)), 0 8px 24px 4px rgb(var(--light) / 0.55);
 }
 
 /*
   Конус света: верх трапеции — ровно ширина отверстия абажура (84px) и прямо под ним,
   поэтому луч выходит из лампы при любой ширине экрана; книзу расходится и гаснет, края мягкие.
 */
+/* Цвет света сцены: белый, у «Красной лампы» — красный (косметика) */
+.overlay {
+  --light: 255 255 255;
+}
+
+.overlay--red {
+  --light: 255 75 62;
+}
+
+/* «Неоновая вывеска» вместо лампы */
+.sign {
+  position: absolute;
+  top: 10vh;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fff;
+  font-family: var(--font-pixel);
+  font-size: 44px;
+  letter-spacing: 0.1em;
+  text-shadow:
+    0 0 6px #fff,
+    0 0 18px rgb(255 255 255 / 0.75),
+    0 0 42px rgb(255 255 255 / 0.4);
+  animation: flicker 3.2s infinite;
+}
+
+.overlay--sign .overlay__title {
+  margin-top: 22vh;
+}
+
 .lamp__beam {
   position: absolute;
   top: calc(9vh + 44px);
@@ -109,7 +147,7 @@ const myInitial = computed(() => session.me?.profile?.display_name.charAt(0).toU
   height: 74vh;
   transform: translateX(-50%);
   clip-path: polygon(calc(50% - 42px) 0, calc(50% + 42px) 0, 100% 100%, 0 100%);
-  background: linear-gradient(to bottom, rgb(255 255 255 / 0.34), rgb(255 255 255 / 0.12) 40%, transparent 92%);
+  background: linear-gradient(to bottom, rgb(var(--light) / 0.34), rgb(var(--light) / 0.12) 40%, transparent 92%);
   -webkit-mask-image: linear-gradient(to right, transparent, #000 30%, #000 70%, transparent);
   mask-image: linear-gradient(to right, transparent, #000 30%, #000 70%, transparent);
   animation: flicker 3.2s infinite;
@@ -123,7 +161,7 @@ const myInitial = computed(() => session.me?.profile?.display_name.charAt(0).toU
   width: 380px;
   height: 58vh;
   transform: translateX(-50%);
-  background: radial-gradient(ellipse 50% 70% at 50% 46px, rgb(255 255 255 / 0.16), transparent 70%);
+  background: radial-gradient(ellipse 50% 70% at 50% 46px, rgb(var(--light) / 0.16), transparent 70%);
   -webkit-mask-image: linear-gradient(to bottom, transparent 30px, #000 70px);
   mask-image: linear-gradient(to bottom, transparent 30px, #000 70px);
   animation: flicker 3.2s infinite;

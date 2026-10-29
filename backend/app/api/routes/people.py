@@ -124,6 +124,11 @@ def _photos(user: User, photo_url: Callable[[int], str]) -> list[PhotoOut]:
     return [PhotoOut(id=photo.id, url=photo_url(photo.id), width=photo.width, height=photo.height) for photo in user.photos]
 
 
+def _look(profile: Profile) -> dict[str, str]:
+    """Надетая косметика, которую видят другие: рамка, фон, значок (сцена мэтча и тема — только для себя)."""
+    return {slot: item for slot, item in (profile.equipped or {}).items() if slot in ("frame", "background", "badge")}
+
+
 def _person_out(
     user: User, match: Compatibility, photo_url: Callable[[int], str], today: date, plan: Plan = "free"
 ) -> PersonOut:
@@ -145,6 +150,7 @@ def _person_out(
         common_game_ids=match.common_game_ids,
         reasons=match.reasons,
         plan=plan,
+        look=_look(profile),
     )
 
 
@@ -162,6 +168,7 @@ def _match_out(
         discord_tag=profile.discord_tag,
         matched_at=match.created_at,
         plan=plan,
+        look=_look(profile),
     )
 
 

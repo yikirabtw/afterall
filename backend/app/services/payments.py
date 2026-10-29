@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.enums import AgeGroup, SubscriptionSource
-from app.db.models import BoostCredits, Payment, User, UserItem
+from app.db.models import BoostCredits, Payment, Profile, User, UserItem
 from app.domain.catalog import PRODUCTS, SPENDING_WINDOW, SUBSCRIPTION_PERIOD, TEEN_MONTHLY_STARS, Product
 from app.services.plans import grant, revoke
 
@@ -71,7 +71,7 @@ async def fulfil(
         else:
             credits.amount += product.boost_count
     elif not await owns(session, user.id, product.id):
-        session.add(UserItem(user_id=user.id, item_id=product.id, acquired_at=now))
+        session.add(UserItem(user_id=user.id, item_id=product.id, acquired_at=now, source="stars"))
     return True
 
 
@@ -91,3 +91,6 @@ async def take_back(session: AsyncSession, payment: Payment, now: datetime) -> N
         item = await session.get(UserItem, (payment.user_id, product.id))
         if item is not None:
             await session.delete(item)
+        profile = await session.get(Profile, payment.user_id)
+        if profile is not None and profile.equipped and product.id in profile.equipped.values():
+            profile.equipped = {slot: item_id for slot, item_id in profile.equipped.items() if item_id != product.id}

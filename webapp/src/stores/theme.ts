@@ -5,15 +5,17 @@ import { ref } from 'vue'
 
 import { paintTelegram } from '../telegram'
 
-export type Theme = 'dark' | 'light'
+export type Theme = 'dark' | 'light' | 'blue' | 'sepia' // blue и sepia — из магазина
 
 const STORAGE_KEY = 'theme'
 // Фон страницы в каждой теме — как --page в styles.css; им красим шапку Telegram
-const PAGE_COLORS: Record<Theme, string> = { dark: '#000000', light: '#f5f5f5' }
+const PAGE_COLORS: Record<Theme, string> = { dark: '#000000', light: '#f5f5f5', blue: '#04060d', sepia: '#0b0805' }
+const THEMES: Theme[] = ['dark', 'light', 'blue', 'sepia']
 
 function readTheme(): Theme {
   try {
-    return localStorage.getItem(STORAGE_KEY) === 'light' ? 'light' : 'dark'
+    const saved = localStorage.getItem(STORAGE_KEY) as Theme | null
+    return saved && THEMES.includes(saved) ? saved : 'dark'
   } catch {
     return 'dark' // хранилище недоступно — просто тёмная
   }

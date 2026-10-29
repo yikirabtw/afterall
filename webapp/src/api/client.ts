@@ -163,6 +163,9 @@ export const api = {
   invoice: (productId: string) => request<{ url: string }>('POST', '/shop/invoice', { product_id: productId }),
   payments: () => request<PaymentRecord[]>('GET', '/shop/payments'),
   cancelSubscription: () => request<void>('POST', '/shop/subscription/cancel'),
+  // Косметика: надеть свои вещи (null — снять), подарок Premium раз в 30 дней
+  equip: (slots: Record<string, string | null>) => request<Me>('PUT', '/me/equipped', slots),
+  takeGift: (itemId: string) => request<Me>('POST', '/me/gift', { item_id: itemId }),
   // Наборы настроек ленты (Premium) — заменяются целиком
   saveFeedPresets: (presets: FeedPreset[]) => request<Me>('PUT', '/me/feed-presets', { presets }),
   leave: (id: number) => request<LobbyDetail>('POST', `/lobbies/${id}/leave`),

@@ -25,6 +25,7 @@ export interface Profile {
   search_age_min: number | null
   search_age_max: number | null
   feed_presets: FeedPreset[] // наборы настроек ленты (Premium)
+  equipped: Record<string, string> // надетая косметика: frame / background / badge / match → id
   reputation: number
 }
 
@@ -65,6 +66,8 @@ export interface Me {
   availability: Slot[]
   search_age_limits: AgeLimits | null
   plan: PlanInfo
+  items: string[] // свои вещи косметики
+  gift_available: boolean // Premium: можно забрать вещь в подарок
 }
 
 export type Plan = 'free' | 'plus' | 'premium'
@@ -239,6 +242,7 @@ export interface Person {
   display_name: string
   plan: Plan // значок Plus / Premium у ника
   boosted: boolean // анкета поднята бустом — честная пометка
+  look: Record<string, string> // надетая косметика: frame / background / badge
   age: number | null
   city: string | null
   bio: string | null
@@ -270,6 +274,7 @@ export interface Match {
   username: string | null
   discord_tag: string | null
   matched_at: string
+  look: Record<string, string>
 }
 
 /** Лента «Кого ищу»: play — побегать, chat — поболтать, friends — друзья надолго; без режима — все */

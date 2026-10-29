@@ -79,4 +79,5 @@ class UserItem(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     item_id: Mapped[str] = mapped_column(String(32), primary_key=True)
     acquired_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    source: Mapped[str | None] = mapped_column(String(16))  # stars / gift / admin / earned
 

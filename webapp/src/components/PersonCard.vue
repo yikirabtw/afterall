@@ -7,6 +7,8 @@ import { rankName } from '../lobby'
 import { gameById } from '../stores/session'
 import FaceitLevel from './FaceitLevel.vue'
 import PhotoCarousel from './PhotoCarousel.vue'
+import { backgroundClass } from '../cosmetics'
+import PixelBadge from './PixelBadge.vue'
 import PlanBadge from './PlanBadge.vue'
 
 const props = defineProps<{ person: Person }>()
@@ -37,6 +39,7 @@ const meta = computed(() =>
 <template>
   <!-- Наклон и блик от пальца — как у «металла» пати, но без отражения поверх фото (v-reflect без слоёв) -->
   <PhotoCarousel v-reflect="REFLECT" class="person" :photos="person.photos" :name="person.display_name">
+    <span v-if="person.look?.background" class="person__look" :class="backgroundClass(person.look.background)" aria-hidden="true" />
     <span class="person__match">
       <b>{{ person.compatibility }}%</b>
       <span>совпадение</span>
@@ -44,6 +47,7 @@ const meta = computed(() =>
     <span v-if="person.boosted" class="boost-tag person__boost">поднята</span>
     <h2 class="person__name">
       {{ person.display_name }}<span v-if="person.age !== null" class="person__age">, {{ person.age }}</span>
+      <PixelBadge v-if="person.look?.badge" :item="person.look.badge" :size="18" />
       <PlanBadge :plan="person.plan" />
     </h2>
     <p class="person__meta">{{ meta }}</p>
@@ -102,6 +106,22 @@ const meta = computed(() =>
   border-color: rgb(255 255 255 / 0.7);
   background: rgb(0 0 0 / 0.45);
   color: #fff;
+}
+
+/* Фон из косметики — текстурой в нижней части анкеты, под затемнением и надписями */
+.person__look {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 55%;
+  background-position: center;
+  background-size: cover;
+  opacity: 0.35;
+  mix-blend-mode: screen;
+  -webkit-mask-image: linear-gradient(to top, #000 40%, transparent);
+  mask-image: linear-gradient(to top, #000 40%, transparent);
+  pointer-events: none;
 }
 
 .person__match {

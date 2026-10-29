@@ -12,10 +12,23 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, OnboardedUser, PhotoUrl, SessionDep
 from app.api.routes.me import load_me
-from app.api.schemas import AvailabilityIn, BirthDateIn, FeedPresetsIn, GamesIn, MeOut, ProfileIn, SearchAgeIn
-from app.db.models import Game, Profile, UserAvailability, UserGame
+from app.api.schemas import (
+    AvailabilityIn,
+    BirthDateIn,
+    EquipIn,
+    FeedPresetsIn,
+    GamesIn,
+    GiftIn,
+    MeOut,
+    ProfileIn,
+    SearchAgeIn,
+)
+from app.db.models import Game, Profile, UserAvailability, UserGame, UserItem
 from app.domain.age import age_group_for, age_on, search_limits
+from app.domain.catalog import PRODUCTS
+from app.domain.cosmetics import slot_of
 from app.domain.plans import FEED_PRESET_PLANS
+from app.services.cosmetics import gift_taken_recently
 from app.domain.time import utcnow
 from app.services.plans import plan_of
 
@@ -86,6 +99,42 @@ async def save_feed_presets(
             raise HTTPException(status.HTTP_403_FORBIDDEN, detail="presets_need_premium")
     profile = await session.get(Profile, user.id)
     profile.feed_presets = [preset.model_dump(mode="json") for preset in body.presets]
+    await session.commit()
+    return await load_me(session, user.id, photo_url)
+
+
+@router.put("/equipped", response_model=MeOut)
+async def equip(body: EquipIn, user: OnboardedUser, session: SessionDep, photo_url: PhotoUrl) -> MeOut:
+    """Надеть косметику: только свои вещи и каждая — в свой слот. None — снять."""
+    owned = set(await session.scalars(select(UserItem.item_id).where(UserItem.user_id == user.id)))
+    equipped = {}
+    for slot, item_id in body.model_dump().items():
+        if item_id is None:
+            continue
+        if item_id not in owned or slot_of(item_id) != slot:
+            raise _invalid("item_not_owned")
+        equipped[slot] = item_id
+    profile = await session.get(Profile, user.id)
+    profile.equipped = equipped
+    await session.commit()
+    return await load_me(session, user.id, photo_url)
+
+
+@router.post("/gift", response_model=MeOut)
+async def take_gift(body: GiftIn, user: OnboardedUser, session: SessionDep, photo_url: PhotoUrl) -> MeOut:
+    """Premium: одна вещь из магазина в подарок раз в 30 дней."""
+    now = utcnow()
+    plan, _ = await plan_of(session, user.id, now)
+    if plan != "premium":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="gift_needs_premium")
+    product = PRODUCTS.get(body.item_id)
+    if product is None or product.kind != "cosmetic":
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="unknown_product")
+    if await session.get(UserItem, (user.id, product.id)) is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="already_owned")
+    if await gift_taken_recently(session, user.id, now):
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, detail="gift_already_taken")
+    session.add(UserItem(user_id=user.id, item_id=product.id, acquired_at=now, source="gift"))
     await session.commit()
     return await load_me(session, user.id, photo_url)
 

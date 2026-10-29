@@ -68,6 +68,19 @@ class FeedPreset(BaseModel):
     language: Annotated[str, StringConstraints(pattern=r"^[a-z]{2}$")] | None = None
 
 
+class EquipIn(BaseModel):
+    """Что надеть: id своей вещи в слот; None — снять."""
+
+    frame: str | None = None
+    background: str | None = None
+    badge: str | None = None
+    match: str | None = None
+
+
+class GiftIn(BaseModel):
+    item_id: str
+
+
 class FeedPresetsIn(BaseModel):
     presets: list[FeedPreset] = Field(max_length=FEED_PRESETS_MAX)
 
@@ -244,12 +257,20 @@ class ProfileOut(Schema):
     search_age_min: int | None  # None — по рамке, см. MeOut.search_age_limits
     search_age_max: int | None
     feed_presets: list[FeedPreset] = []  # наборы настроек ленты (Premium)
+    equipped: dict[str, str] = {}  # надетая косметика: frame / background / badge / match → id вещи
 
+    reputation: int
+
+    # В базе пусто (None) — отдаём пустой список / словарь
     @field_validator("feed_presets", mode="before")
     @classmethod
-    def _presets_none_is_empty(cls, value: object) -> object:
+    def _no_presets(cls, value: object) -> object:
         return value or []
-    reputation: int
+
+    @field_validator("equipped", mode="before")
+    @classmethod
+    def _nothing_equipped(cls, value: object) -> object:
+        return value or {}
 
 
 class UserGameOut(Schema):
@@ -326,6 +347,8 @@ class MeOut(Schema):
     games: list[UserGameOut]
     availability: list[AvailabilitySlotOut]
     plan: PlanOut = PlanOut()  # заполняет load_me
+    items: list[str] = []  # свои вещи косметики (заполняет load_me)
+    gift_available: bool = False  # Premium: можно забрать вещь в подарок
 
     @computed_field
     @property
@@ -466,6 +489,7 @@ class PersonOut(BaseModel):
     reasons: list[str]
     plan: Plan = "free"  # для значка Plus / Premium у ника
     boosted: bool = False  # анкета поднята бустом — честная пометка на карточке
+    look: dict[str, str] = {}  # надетая косметика, видимая другим: frame / background / badge
 
 
 class ReactIn(BaseModel):
@@ -484,6 +508,7 @@ class MatchOut(BaseModel):
     discord_tag: str | None
     matched_at: UtcDatetime
     plan: Plan = "free"
+    look: dict[str, str] = {}
 
 
 class LikesOut(BaseModel):
